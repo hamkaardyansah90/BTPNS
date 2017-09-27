@@ -1,0 +1,453 @@
+*-----------------------------------------------------------------------------
+* <Rating>806</Rating>
+*-----------------------------------------------------------------------------
+* 21:27:48 23 SEP 2016 * 13:09:28 29 AUG 2016 * 12:05:27 29 AUG 2016
+* AT240301D01/btpnsqua * AT240301D01/btpnsqua * AT240301D01/btpnsqua
+*-----------------------------------------------------------------------------
+* MODIFIED ATILHM(20150212) FOR ENQUIRY
+* MODIFIED ATILHM(20160415) FOR REVERSAL ISSUE, IF THIRD PARTY JUST SENT REQUEST REVERSAL WITHOUT MAIN TRANSACTION
+*-----------------------------------------------------------------------------
+* CHANGED BY    : Galuh Gigih Pranata ; * galuh.pranata@anabatic.com
+* DATE          : 17 Apr 2017
+* CHANGES       : Tuning Program
+*-----------------------------------------------------------------------------
+    SUBROUTINE IDI.WS.INC.PRE.PROCESS(INC.DATA)
+
+    $INSERT ../T24.BP I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.IDIH.T24.INTG.PARAM
+    $INSERT I_IDI.WS.LOOKUP.VALUE.COMMON
+    $INSERT I_IDI.WS.INC.PRE.PROCESS.COMMON
+    $INSERT I_F.IDIH.WS.DATA.FT.MAP
+    $INSERT I_F.USER
+    $INSERT I_F.IDIH.T24.INTG.MAP
+    $INSERT I_F.DATES
+    $INSERT I_F.USER
+    $INSERT I_F.TELLER.ID
+
+    GOSUB VAR.COMMON
+    GOSUB INIT
+
+    RETURN
+*-----------------------------------------------------------------------------
+VAR.COMMON:
+
+    Y.ID.OFS = ''
+    Y.OFS.APP.REQ = ''
+    Y.TEMP.REQ = ''
+    Y.OFS.FUNCTION = ''
+    Y.VERSION.OFS = ''
+    Y.ID.REC.ENQ = ''
+    Y.IN.STAN = ''
+    Y.OFS.FUN = ''
+    Y.ACCT.ENQ = ''
+    Y.ID.MAPPING = ''
+    Y.IN.UNIQUE.ID = ''
+    R.VALUE.WS = ''
+    Y.TIME.IN = ""
+    Y.TIME.OUT = ""
+
+    Y.ID.REQ = FIELDS(INC.DATA,",",4,1)
+    Y.ID.REC = FIELDS(Y.ID.REQ,"/",1,1)
+
+    Y.OFS.PWD = FIELD(INC.DATA,",",3,1)
+    Y.COMP = FIELD(Y.OFS.PWD,"/",3)
+    Y.PASS = FIELD(Y.OFS.PWD,"/",2)
+    Y.USER = FIELD(Y.OFS.PWD,"/",1)
+
+    Y.OFS.APP = FIELD(INC.DATA,",",1,1)
+    Y.MSG = FIELD(INC.DATA,",",4,9999999999)
+    Y.MSG.FORMAT = FIELD(Y.MSG,',',2,999999999)
+    Y.MSG.SHARE = Y.MSG.FORMAT
+
+    CONVERT ',' TO FM IN Y.MSG.SHARE
+    CONVERT '=' TO VM IN Y.MSG.SHARE
+
+    Y.MSG.WRT = Y.MSG.SHARE
+
+    Y.FLAG = 0
+
+    RETURN
+*-----------------------------------------------------------------------------
+INIT:
+
+    FN.INTG.PAR = 'F.IDIH.T24.INTG.PARAM'
+    F.INTG.PAR = ''
+    CALL OPF(FN.INTG.PAR,F.INTG.PAR)
+
+    FN.FT.MAP = 'F.IDIH.WS.DATA.FT.MAP'
+    F.FT.MAP = ''
+    CALL OPF(FN.FT.MAP,F.FT.MAP)
+
+    FN.INTG.MAP = 'F.IDIH.T24.INTG.MAP'
+    F.INTG.MAP = ''
+    CALL OPF(FN.INTG.MAP,F.INTG.MAP)
+
+    FN.USER ="F.USER"
+    F.USER  =""
+    CALL OPF(FN.USER,F.USER)
+
+    FN.TELLER.ID ="F.TELLER.ID"
+    F.TELLER.ID =""
+    CALL OPF(FN.TELLER.ID,F.TELLER.ID)
+
+    FINDSTR 'IN.TRNS.DT.TM' IN Y.MSG.SHARE SETTING AP,VP,SP THEN
+        Y.IN.TRNS.DT.TM = Y.MSG.SHARE<AP,2>
+    END
+    FINDSTR 'IN.STAN' IN Y.MSG.SHARE SETTING AP,VP,SP THEN
+        Y.IN.STAN = Y.MSG.SHARE<AP,2>
+    END
+    FINDSTR 'IN.CHANNEL.ID' IN Y.MSG.SHARE SETTING AP,VP,SP THEN
+        Y.IN.CHANNEL.ID = Y.MSG.SHARE<AP,2>
+    END
+    FINDSTR 'IN.REVERSAL.ID' IN Y.MSG.SHARE SETTING AP,VP,SP THEN
+        Y.IN.REVERSAL.ID = Y.MSG.SHARE<AP,2>
+    END
+
+    FINDSTR "IN.SRC.ACCT" IN Y.MSG.SHARE SETTING AP,VP,SP THEN
+        Y.IN.USER.WOW = Y.MSG.SHARE<AP,2>
+    END
+
+    FINDSTR 'TRANSACTION.TYPE' IN Y.MSG.SHARE SETTING AP,VP,SP THEN
+        Y.IN.TRANSACTION.TYPE = Y.MSG.SHARE<AP,2>
+    END
+
+    FINDSTR 'COMMISSION.TYPE' IN Y.MSG.SHARE SETTING AP,VP,SP THEN
+        Y.IN.COMMISION.TYPE = Y.MSG.SHARE<AP,2>
+    END
+
+
+    IF Y.ID.REC EQ '' THEN
+        Y.ID.REC = Y.IN.CHANNEL.ID:Y.IN.STAN:Y.IN.TRNS.DT.TM
+    END
+
+    Y.TIME.IN = ICONV((TIME()),"MTS")
+
+    IF Y.OFS.APP EQ 'ENQUIRY.SELECT' THEN
+        Y.VERSION = FIELD(INC.DATA,",",4)
+        GOSUB MAIN
+    END ELSE
+        Y.VERSION = FIELD(INC.DATA,"/",1)
+        Y.ID = FIELD(Y.MSG,",",1)
+        Y.OFS.FUNC = FIELD(INC.DATA,",",2,1)
+        GOSUB GET.VARIABLE
+        GOSUB MAIN
+    END
+
+    RETURN
+*-----------------------------------------------------------------------------
+MAIN:
+
+    CALL F.READ(FN.INTG.PAR,"SYSTEM",R.INTG.PAR,F.INTG.PAR,ERR)
+
+    Y.VERSION.TRG = R.INTG.PAR<T24.INTG.PAR.VERSION.TARGET>
+
+    FIND Y.VERSION IN Y.VERSION.TRG SETTING AP,VP,SP THEN
+        Y.ID.MAPPING = R.INTG.PAR<T24.INTG.PAR.ID.MAPPING, VP>
+        Y.ID.REQ.INTG = Y.ID.MAPPING
+    END
+
+    Y.ID.OFS = Y.ID.REC
+    Y.OFS.APP.REQ = Y.OFS.APP
+    Y.TEMP.REQ = Y.MSG.FORMAT
+    Y.OFS.FUNCTION = FIELD(Y.OFS.FUNC,"/",2,1)
+    Y.VERSION.OFS = Y.VERSION
+    Y.ID.REC.ENQ = Y.IN.REVERSAL.ID
+
+
+*--------------------Write the original message into INTERFACE LOG--------------------*
+    Y.MSG.WRT = 'REQUEST INPUT :':Y.IN.STAN:' = ':INC.DATA
+    Y.INT.TYPE = 'IN'
+    Y.LOG.LEVEL = 'INFO'
+    CALL IDI.WRITE.LOG.INT(Y.INT.TYPE,Y.LOG.LEVEL,Y.MSG.WRT)
+*--------------------end here--------------------*
+
+
+*--------------------write to IDIH.WS.DATA.FT.MAP--------------------*
+    GOSUB WRITE.TEMP
+*--------------------end here--------------------*
+
+
+* --------------------*
+    Y.MSG.2 = INC.DATA
+    IF Y.ID.MAPPING NE '' THEN
+        CALL IDI.T24.CONSTRUCT.OFS(Y.ID.MAPPING,Y.MSG.2)
+    END ELSE
+        Y.MSG.2 = INC.DATA
+    END
+    INC.DATA = Y.MSG.2
+*--------------------end here--------------------*
+
+
+*--------------------redefine variable after reconstruct message that will be wrote into INTERFACE.LOG--------------------*
+    IF Y.OFS.APP EQ 'ENQUIRY.SELECT' THEN
+        INC.DATA = Y.MSG.2
+    END ELSE
+
+        Y.OFS.APP = FIELD(Y.MSG.2,",",1)
+        Y.OFS.POST = FIELD(Y.MSG.2,",",2)
+        Y.OFS.PWD = FIELD(Y.MSG.2,",",3,1)
+        Y.PASS = FIELD(Y.OFS.PWD,"/",2)
+        Y.USER = FIELD(Y.OFS.PWD,"/",1)
+        Y.COMP = FIELD(Y.OFS.PWD,"/",3)
+
+        Y.MSG.FORMAT = FIELD(Y.MSG.2,",",3,9999999)
+        Y.MSG = FIELD(INC.DATA,",",4,9999999999)
+
+        IF Y.IN.USER.WOW THEN
+            SEL.CMD ="SELECT ":FN.USER:" WITH USER.ID.MOBILIS EQ ": Y.IN.USER.WOW
+            SEL.LIST =""
+            CALL EB.READLIST(SEL.CMD,SEL.LIST,"",NOREC,ERRREC)
+
+            SEL.CMD.TT = "SELECT ":FN.TELLER.ID:" WITH USER EQ ":SEL.LIST
+            SEL.LIST.TT =""
+            CALL EB.READLIST(SEL.CMD.TT,SEL.LIST.TT,'',NORECTT,ERRTT)
+            CALL F.READ(FN.TELLER.ID,SEL.LIST.TT,R.TELLER.ID,F.TELLER.ID,ERR.TT.ID)
+            Y.TELLER.CO.CODE =R.TELLER.ID<TT.TID.CO.CODE>
+            INC.DATA = Y.OFS.APP:',':Y.OFS.POST:',':Y.USER:'/':Y.PASS:'/':Y.TELLER.CO.CODE:'/':'/':'/':',':Y.MSG
+        END ELSE
+            INC.DATA = Y.OFS.APP:',':Y.OFS.POST:',':Y.USER:'/':Y.PASS:'/':'/':'/':'/':',':Y.MSG
+        END
+    END
+*--------------------end here--------------------*
+
+
+*--------------------write the message after modified into INTERFACE.LOG--------------------*
+    Y.MSG.WRT = 'AFTER MODIFIED : ':INC.DATA
+    Y.INT.TYPE = 'ORC'
+    Y.LOG.LEVEL = 'INFO'
+    CALL IDI.WRITE.LOG.INT(Y.INT.TYPE,Y.LOG.LEVEL,Y.MSG.WRT)
+*--------------------end here--------------------*
+
+    RETURN
+*-----------------------------------------------------------------------------
+GET.VARIABLE:
+
+    Y.MSG.VAR = Y.MSG.FORMAT
+    CONVERT ',' TO FM IN Y.MSG.VAR
+    CONVERT '=' TO VM IN Y.MSG.VAR
+
+    CALL GET.STANDARD.SELECTION.DETS(Y.OFS.APP,R.STANDARD.SELECTION)
+
+    Y.COUNT.FIELD = DCOUNT(Y.MSG.VAR,FM)
+    FOR X=1 TO Y.COUNT.FIELD
+        Y.T24.FIELD.NO = ''
+        Y.LRT.NO = ''
+        Y.FIELD.X = FIELD((Y.MSG.VAR<X,1>),":",1)
+
+        CALL FIELD.NAMES.TO.NUMBERS(Y.FIELD.X,R.STANDARD.SELECTION,Y.T24.FIELD.NO,YAF,YAV,YAS,DATA.TYPE,ERR.MSG)
+        IF Y.T24.FIELD.NO = '' THEN
+            CALL FIELD.NAMES.TO.NUMBERS("LOCAL.REF",R.STANDARD.SELECTION,Y.T24.FIELD.NO,YAF,YAV,YAS,DATA.TYPE,ERR.MSG)
+            CALL GET.LOC.REF(Y.OFS.APP,Y.FIELD.X,Y.LRT.NO)
+            Y.FLAG.LRT = 'Y'
+            GOSUB FILL.VAR
+        END
+        ELSE
+            Y.FLAG.LRT = 'N'
+            GOSUB FILL.VAR
+        END
+    NEXT X
+
+    RETURN
+*-----------------------------------------------------------------------------
+FILL.VAR:
+    BEGIN CASE
+    CASE Y.FLAG.LRT EQ 'Y'
+        IF (R.VALUE.WS<Y.T24.FIELD.NO, Y.LRT.NO>) <> '' THEN
+            Y.JML.VAL = DCOUNT((R.VALUE.WS<Y.T24.FIELD.NO,Y.LRT.NO>),SM)
+            R.VALUE.WS<Y.T24.FIELD.NO, Y.LRT.NO ,Y.JML.VAL+1> = Y.MSG.VAR<X,2>
+        END
+        ELSE
+            R.VALUE.WS<Y.T24.FIELD.NO, Y.LRT.NO> = Y.MSG.VAR<X,2>
+        END
+    CASE Y.FLAG.LRT EQ 'N'
+        IF (R.VALUE.WS<Y.T24.FIELD.NO>) <> '' THEN
+            Y.JML.VAL = DCOUNT((R.VALUE.WS<Y.T24.FIELD.NO>),VM)
+            R.VALUE.WS<Y.T24.FIELD.NO,Y.JML.VAL+1> = Y.MSG.VAR<X,2>
+        END
+        ELSE
+            R.VALUE.WS<Y.T24.FIELD.NO> = Y.MSG.VAR<X,2>
+        END
+    END CASE
+
+    RETURN
+*-----------------------------------------------------------------------------
+WRITE.TEMP:
+
+    BEGIN CASE
+
+    CASE Y.OFS.FUNCTION EQ 'I'
+
+        CALL F.READ(FN.FT.MAP,Y.ID.REC,R.FT.MAP,F.FT.MAP,ERR)
+        IF R.FT.MAP EQ '' THEN
+
+            CALL GET.STANDARD.SELECTION.DETS(Y.OFS.APP.REQ,R.APP.SS)
+            Y.FLD.CNT = DCOUNT(Y.MSG.SHARE, FM)
+
+            FOR Y.FLD.I = 1 TO Y.FLD.CNT
+                Y.APP.T24.FIELD.NO = ''
+                Y.APP.LRT.NO = ''
+                Y.APP.FIELD.X = FIELD((Y.MSG.SHARE<Y.FLD.I,1>),":",1)
+                Y.APP.VALUE.X = Y.MSG.SHARE<Y.FLD.I,2>
+
+
+                CALL FIELD.NAMES.TO.NUMBERS(Y.APP.FIELD.X,R.APP.SS,Y.APP.T24.FIELD.NO,YAF,YAV,YAS,DATA.TYPE,ERR.MSG)
+                IF Y.APP.T24.FIELD.NO = '' THEN
+                    CALL FIELD.NAMES.TO.NUMBERS("LOCAL.REF",R.APP.SS,Y.APP.T24.FIELD.NO,YAF,YAV,YAS,DATA.TYPE,ERR.MSG)
+                    CALL GET.LOC.REF(Y.OFS.APP.REQ,Y.APP.FIELD.X,Y.APP.LRT.NO)
+                    R.FT.MAP<Y.APP.T24.FIELD.NO, Y.APP.LRT.NO> = Y.APP.VALUE.X
+                END ELSE
+                    R.FT.MAP<Y.APP.T24.FIELD.NO> = Y.APP.VALUE.X
+                END
+            NEXT Y.FLD.I
+            IF Y.IN.CHANNEL.ID EQ "6020" THEN
+                R.FT.MAP<WS.DATA.FT.IN.PAYEE>             = Y.IN.TRANSACTION.TYPE
+                R.FT.MAP<WS.DATA.FT.IN.INSTITUTION.ID> = Y.IN.COMMISION.TYPE
+            END
+
+            Y.IN.STATUS.REC = 'PROCESSING'
+
+            R.FT.MAP<WS.DATA.FT.IN.STATUS.REC> = Y.IN.STATUS.REC
+            R.FT.MAP<WS.DATA.FT.IN.REVERSAL.ID> = Y.ID.REC
+            Y.CURR.NO = 1
+            R.FT.MAP<WS.DATA.FT.CURR.NO> += Y.CURR.NO
+            R.FT.MAP<WS.DATA.FT.CO.CODE> = Y.COMP
+            R.FT.MAP<WS.DATA.FT.INPUTTER> = 'TWS'
+            R.FT.MAP<WS.DATA.FT.AUTHORISER> = 'TWS'
+            X = OCONV(DATE(),"D-")
+            Y.TIME.STAMP = FIELD(TIMEDATE(), " ", 1)
+            DT = X[9,2]:X[1,2]:X[4,2]:Y.TIME.STAMP[1,2]:Y.TIME.STAMP[4,2]
+            R.FT.MAP<WS.DATA.FT.DATE.TIME> = DT
+            R.FT.MAP<WS.DATA.FT.DEPT.CODE> = R.USER<EB.USE.DEPARTMENT.CODE>
+            R.FT.MAP<WS.DATA.FT.IN.PROC.DATE> = R.DATES(EB.DAT.TODAY)
+
+            CALL F.WRITE(FN.FT.MAP,Y.ID.REC,R.FT.MAP)
+            CALL JOURNAL.UPDATE('')
+
+        END ELSE
+            Y.CURR.NO = 1
+            R.FT.MAP<WS.DATA.FT.CURR.NO> += Y.CURR.NO
+
+            CALL F.WRITE(FN.FT.MAP,Y.ID.REC,R.FT.MAP)
+            CALL JOURNAL.UPDATE('')
+        END
+    CASE Y.OFS.FUNCTION EQ 'R'
+
+        CALL F.READ(FN.FT.MAP,Y.ID.REC,R.FT.MAP,F.FT.MAP,ERR)
+        IF R.FT.MAP NE '' THEN
+
+            Y.IN.STATUS.REC = 'REVERSING'
+            R.FT.MAP<WS.DATA.FT.IN.REVERSAL.ID> = Y.ID.REC
+            R.FT.MAP<WS.DATA.FT.IN.STATUS.REC> = Y.IN.STATUS.REC
+            R.FT.MAP<WS.DATA.FT.IN.PROC.DATE> = R.DATES(EB.DAT.TODAY)
+        END ELSE
+            R.FT.MAP<WS.DATA.FT.IN.STATUS.REC> = 'REVERSING'
+            Y.CURR.NO = 1
+            R.FT.MAP<WS.DATA.FT.CURR.NO> += Y.CURR.NO
+            R.FT.MAP<WS.DATA.FT.CO.CODE> = Y.COMP
+            R.FT.MAP<WS.DATA.FT.INPUTTER> = 'TWS'
+            R.FT.MAP<WS.DATA.FT.AUTHORISER> = 'TWS'
+            X = OCONV(DATE(),"D-")
+            Y.TIME.STAMP = FIELD(TIMEDATE(), " ", 1)
+            DT = X[9,2]:X[1,2]:X[4,2]:Y.TIME.STAMP[1,2]:Y.TIME.STAMP[4,2]
+            R.FT.MAP<WS.DATA.FT.DATE.TIME> = DT
+            R.FT.MAP<WS.DATA.FT.DEPT.CODE> = R.USER<EB.USE.DEPARTMENT.CODE>
+            R.FT.MAP<WS.DATA.FT.IN.PROC.DATE> = R.DATES(EB.DAT.TODAY)
+        END
+
+        CALL F.WRITE(FN.FT.MAP,Y.ID.REC,R.FT.MAP)
+        CALL JOURNAL.UPDATE('')
+
+    CASE Y.OFS.FUNCTION EQ ''
+
+        CALL F.READ(FN.FT.MAP,Y.ID.REC.ENQ,R.FT.MAP,F.FT.MAP,ERR)
+        IF R.FT.MAP EQ '' THEN
+
+            Y.ENQ.APP = "IDIH.WS.DATA.FT.MAP"
+            CALL GET.STANDARD.SELECTION.DETS(Y.ENQ.APP,R.ENQ.SS)
+            Y.ENQ.CNT = DCOUNT(Y.MSG.SHARE, FM)
+
+            FOR Y.ENQ.I = 1 TO Y.ENQ.CNT
+                Y.ENQ.T24.FIELD.NO = ''
+                Y.ENQ.LRT.NO = ''
+                Y.ENQ.FIELD.X = FIELD((Y.MSG.SHARE<Y.ENQ.I,1>),":",1)
+                Y.ENQ.VALUE.X = Y.MSG.SHARE<Y.ENQ.I,2>
+
+                CALL FIELD.NAMES.TO.NUMBERS(Y.ENQ.FIELD.X,R.ENQ.SS,Y.ENQ.T24.FIELD.NO,YAF,YAV,YAS,DATA.TYPE,ERR.MSG)
+                IF Y.ENQ.T24.FIELD.NO = '' THEN
+                    CALL FIELD.NAMES.TO.NUMBERS("LOCAL.REF",R.ENQ.SS,Y.ENQ.T24.FIELD.NO,YAF,YAV,YAS,DATA.TYPE,ERR.MSG)
+                    CALL GET.LOC.REF(Y.ENQ.APP,Y.ENQ.FIELD.X,Y.ENQ.LRT.NO)
+                    R.FT.MAP<Y.ENQ.T24.FIELD.NO, Y.ENQ.LRT.NO> = Y.ENQ.VALUE.X
+                END ELSE
+                    R.FT.MAP<Y.ENQ.T24.FIELD.NO> = Y.ENQ.VALUE.X
+                END
+            NEXT Y.ENQ.I
+
+            FINDSTR '@ID' IN Y.MSG.SHARE SETTING AP,VP,SP THEN
+                Y.ACCT.ENQ = Y.MSG.SHARE<AP,2>
+            END
+
+            IF Y.ACCT.ENQ EQ '' THEN
+                FINDSTR 'ACCOUNT' IN Y.MSG.SHARE SETTING AP,VP,SP THEN
+                    Y.ACCT.ENQ = Y.MSG.SHARE<AP,2>
+                END
+
+            END
+
+            R.FT.MAP<WS.DATA.FT.DEBIT.ACCT.NO> = Y.ACCT.ENQ
+            Y.IN.STATUS.REC = 'PROCESSING'
+            R.FT.MAP<WS.DATA.FT.IN.STATUS.REC> = Y.IN.STATUS.REC
+            R.FT.MAP<WS.DATA.FT.CO.CODE> = Y.COMP
+            Y.CURR.NO = 1
+            R.FT.MAP<WS.DATA.FT.CURR.NO> += Y.CURR.NO
+            IF R.FT.MAP<WS.DATA.FT.INPUTTER> EQ '' AND R.FT.MAP<WS.DATA.FT.AUTHORISER> EQ '' AND R.FT.MAP<WS.DATA.FT.DATE.TIME> EQ '' AND R.FT.MAP<WS.DATA.FT.DEPT.CODE> EQ '' THEN
+                R.FT.MAP<WS.DATA.FT.INPUTTER> = 'TWS'
+                R.FT.MAP<WS.DATA.FT.AUTHORISER> = 'TWS'
+                X = OCONV(DATE(),"D-")
+                Y.TIME.STAMP = FIELD(TIMEDATE(), " ", 1)
+                DT = X[9,2]:X[1,2]:X[4,2]:Y.TIME.STAMP[1,2]:Y.TIME.STAMP[4,2]
+                R.FT.MAP<WS.DATA.FT.DATE.TIME> = DT
+                R.FT.MAP<WS.DATA.FT.DEPT.CODE> = R.USER<EB.USE.DEPARTMENT.CODE>
+            END
+            R.FT.MAP<WS.DATA.FT.IN.REVERSAL.ID> = Y.ID.REC.ENQ
+            R.FT.MAP<WS.DATA.FT.IN.PROC.DATE> = R.DATES(EB.DAT.TODAY)
+
+            CALL F.WRITE(FN.FT.MAP,Y.ID.REC.ENQ,R.FT.MAP)
+            CALL JOURNAL.UPDATE('')
+
+        END ELSE
+            Y.CURR.NO = 1
+            R.FT.MAP<WS.DATA.FT.CURR.NO> += Y.CURR.NO
+            R.FT.MAP<WS.DATA.FT.IN.PROC.DATE> = R.DATES(EB.DAT.TODAY)
+            Y.ID.REC.ENQ = Y.IN.REVERSAL.ID
+            CALL F.WRITE(FN.FT.MAP,Y.ID.REC.ENQ,R.FT.MAP)
+            CALL JOURNAL.UPDATE('')
+        END
+    END CASE
+
+    CALL F.READ(FN.INTG.MAP,Y.ID.MAPPING,R.INTG.MAP,F.INTG.MAP,ERR.INTG.MAP)
+
+    IF ERR.INTG.MAP EQ '' THEN
+        Y.RESP.MAP.ID = R.INTG.MAP<T24.INTG.MAP.RESP.MAP.ID>
+    END
+    RETURN
+
+*-----------------------------------------------------------------------------
+END
+*-----------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

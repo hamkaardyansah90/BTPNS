@@ -1,0 +1,31 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE IDI.GET.RESP.STATUS.ENQ(Y.VALUE)
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_IDI.CALL.OFS.COMMON
+*DEBUG
+    IF Y.FLAG EQ '1' THEN
+        Y.VALUE = 'SUCCESS'
+    END ELSE
+        Y.ERR = FIELDS(Y.ERR.MSG,',',2)
+        Y.ERR.DESC = FIELDS(Y.ERR,'=',2)
+        Y.VALUE = 'ERROR'
+    END
+
+
+    RETURN
+
+END
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,590 @@
+*-----------------------------------------------------------------------------
+* <Rating>681</Rating>
+*-----------------------------------------------------------------------------
+* Agung WS
+* 28 Mei 2013
+* Rutin to input with OFS
+* MODIFIED APLLICATION, IF 'ENQUIRY.SELECT' THEN CHANGE WITH TABLE TEMP ENQUIRY(ATILHM20150327)
+*-----------------------------------------------------------------------------
+    SUBROUTINE IDI.INPUT.OFS(Y.VALUE,INTEXT,Y.READ.ID,Y.OUT.MSG)
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.LIMIT
+    $INSERT I_F.COLLATERAL.RIGHT
+    $INSERT I_F.COLLATERAL
+    $INSERT I_F.LD.LOANS.AND.DEPOSITS
+    $INSERT I_F.IDIH.PARAM.INPUT.OFS
+    $INSERT ../INTRF.BP I_F.IDIH.WS.DATA.FT.MAP
+    $INSERT I_IDI.CALL.OFS.COMMON
+*$INSERT I_F.ACCOUNT
+**ADD USED APPLICATION
+**BY RIZKY
+*$INSERT I_F.CUSTOMER
+*$INSERT I_F.CHEQUE.ISSUE
+    $INSERT I_F.FUNDS.TRANSFER
+*$INSERT I_F.PAYMENT.STOP
+*$INSERT I_F.MM.MONEY.MARKET
+*$INSERT I_F.ACCOUNT.STATEMENT
+*$INSERT I_F.ALTERNATE.ACCOUNT
+    $INSERT I_IDI.WS.INC.PRE.PROCESS.COMMON
+**ADD TO LOG THE ROUTINE
+*DEBUG
+**BY RIZKY
+
+
+    Y.INT.TYPE = 'ORC'
+    Y.LOG.LEVEL = 'DEBUG'
+    Y.MSG = "Parameter Used : " : Y.VALUE
+
+    CALL IDI.WRITE.LOG.INT(Y.INT.TYPE,Y.LOG.LEVEL,Y.MSG)
+
+    GOSUB INIT
+    GOSUB PROCESS
+
+*CALL IDIV.CREATE.EB.ERROR
+
+    RETURN
+*-----------------------------------------------------------------------------
+INIT:
+*-----------------------------------------------------------------------------
+*DEBUG
+*FN.WD = "F.IDIH.WS.DATA"
+*F.WD = ""
+*CALL OPF(FN.WD,F.WD)
+
+    FN.PAR = "F.IDIH.PARAM.INPUT.OFS"
+    F.PAR = ""
+    CALL OPF(FN.PAR,F.PAR)
+* MODIFIED APLLICATION, IF 'ENQUIRY.SELECT' THEN CHANGE WITH TABLE TEMP ENQUIRY
+    IF Y.OFS.APP.REQ EQ 'ENQUIRY.SELECT' THEN
+        APPLICATION = 'IDIH.WS.DATA.FT.MAP'
+    END
+
+    CALL GET.STANDARD.SELECTION.DETS(APPLICATION,R.STANDARD.SELECTION)
+
+    CALL FIELD.NAMES.TO.NUMBERS("LOCAL.REF",R.STANDARD.SELECTION,Y.T24.FIELD.NO.REF,YAF,YAV,YAS,DATA.TYPE,ERR.MSG)
+
+    CALL F.READ(FN.PAR, Y.VALUE, R.PAR, F.PAR, PAR.ERR)
+
+    Y.VERSION = R.PAR<INPUT.OFS.VERSION>
+    Y.REC.ID = ""
+    Y.REC.IDX = ""
+    Y.FLAG = ""
+    Y.OUT.MSG = ""
+    Y.TEXTVALUE = INTEXT
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+PROCESS:
+*-----------------------------------------------------------------------------
+*DEBUG
+    Y.APPLICATION = R.PAR<INPUT.OFS.APPLICATION>
+    Y.APP.SOURCE = R.PAR<INPUT.OFS.APP.SOURCE>
+
+    Y.CNT.APP = DCOUNT(Y.APPLICATION, @VM)
+
+    FOR I = 1 TO Y.CNT.APP
+        OFS.SRC.ID = R.PAR<INPUT.OFS.OFS.SOURCE, I>
+        Y.VERSION.I = R.PAR<INPUT.OFS.VERSION, I>
+        IF Y.VERSION.I[1,1] = '@' THEN
+            Y.RTN = FIELD(Y.VERSION.I, '@', 2)
+            CALL @Y.RTN(Y.RET.VALUE)
+            Y.VERSION.I = Y.RET.VALUE
+
+**ADD TO LOG THE ROUTINE
+**BY RIZKY
+            Y.INT.TYPE = 'ORC'
+            Y.LOG.LEVEL = 'DEBUG'
+            Y.MSG = "Routine ID : " : Y.RTN : " , Output : " : Y.VERSION.I
+
+            CALL IDI.WRITE.LOG.INT(Y.INT.TYPE,Y.LOG.LEVEL,Y.MSG)
+
+        END
+        Y.FUNCTION = R.PAR<INPUT.OFS.FUNCTION, I>
+
+        Y.COMPANY = R.PAR<INPUT.OFS.COMPANY, I>
+
+        IF Y.COMPANY[1,1] = '@' THEN
+            Y.RTN = FIELD(Y.COMPANY, '@', 2)
+            CALL @Y.RTN(Y.RET.VALUE)
+            Y.COMPANY = Y.RET.VALUE
+
+**ADD TO LOG THE ROUTINE
+**BY RIZKY
+            Y.INT.TYPE = 'ORC'
+            Y.LOG.LEVEL = 'DEBUG'
+            Y.MSG = "Routine COMPANY : " : Y.RTN : " , Output : " : Y.COMPANY
+
+            CALL IDI.WRITE.LOG.INT(Y.INT.TYPE,Y.LOG.LEVEL,Y.MSG)
+
+        END
+
+        GOSUB GET.INPUT.ID
+        Y.USER = R.PAR<INPUT.OFS.USER, I>
+        Y.PASSWORD = R.PAR<INPUT.OFS.PASSWORD, I>
+        Y.FIELD.NAME = R.PAR<INPUT.OFS.FIELD.NAME, I>
+        Y.CNT.FIELD = DCOUNT(Y.FIELD.NAME, @SM)
+        Y.MLT.OFS = ''
+        Y.MLT.OFS = R.PAR<INPUT.OFS.MULTI.OFS.KEY, I>
+        Y.SOURCE.TYPE = R.PAR<INPUT.OFS.SOURCE.TYPE, I>
+
+*DEBUG
+        Y.OVERWRITE = R.PAR<INPUT.OFS.RECORD.OVERWRITE, I>
+
+        IF Y.APPLICATION EQ 'FUNDS.TRANSFER' OR Y.APPLICATION EQ 'ACCOUNT' OR Y.APPLICATION EQ 'CUSTOMER' THEN
+
+            FN.APP = 'FBNK.':R.PAR<INPUT.OFS.APPLICATION, I>
+            F.APP = ''
+            CALL OPF(FN.APP,F.APP)
+            CALL F.READ(FN.APP, Y.RECORD.ID.I, R.APP, F.APP, ERR.APP)
+        END ELSE
+            FN.APP = 'F.':R.PAR<INPUT.OFS.APPLICATION, I>
+            F.APP = ''
+            CALL OPF(FN.APP,F.APP)
+            CALL F.READ(FN.APP, Y.RECORD.ID.I, R.APP, F.APP, ERR.APP)
+        END
+
+**ADD NEW CONDITION FOR IF THERE IS ALREADY A RECORD THEN GIVE A MARK
+**BY RIZKY
+
+        Y.REC.EXIST = ""
+        Y.ALT.EXIST = ""
+
+**ADD ALTERNATE ACCOUNT CONDITION
+**LUTZFI
+*DEBUG
+**MODIFIED FOR ATMBTPNS
+*IF R.APP EQ '' THEN
+
+*CALL GET.LOC.REF("IDIH.PARAM.INPUT.OFS","ALT.APP.SOURCE",ALT.SOURCE)
+*CALL GET.LOC.REF("IDIH.PARAM.INPUT.OFS","ALT.APP.ID.FLD",ALT.ID)
+*CALL GET.LOC.REF("IDIH.PARAM.INPUT.OFS","ALT.APPLICATION",ALT.APP)
+
+*Y.SOURCE.APP = R.PAR<INPUT.OFS.APPLICATION, I>
+*Y.APP.SOURCE = R.PAR<INPUT.OFS.LOCAL.REF><1,ALT.SOURCE,I>
+
+*FIND Y.SOURCE.APP IN Y.APP.SOURCE SETTING Ap,Vp,Sp THEN
+
+*Y.ALT.APP.ID.FIELD = R.PAR<INPUT.OFS.LOCAL.REF><1,ALT.ID,I>
+*Y.APP.ALTERNATE = R.PAR<INPUT.OFS.LOCAL.REF><1,ALT.APP,I>
+
+*CALL FIELD.NAMES.TO.NUMBERS(Y.ALT.APP.ID.FIELD,R.STANDARD.SELECTION,Y.T24.FIELD.NO,YAF,YAV,YAS,DATA.TYPE,ERR.MSG)
+*Y.ALT.ID = R.NEW(Y.T24.FIELD.NO)
+
+*FN.APP = 'F.':Y.APP.ALTERNATE
+*F.APP = ''
+*CALL OPF(FN.APP,F.APP)
+*CALL F.READ(FN.APP, Y.ALT.ID, R.APP, F.APP, ERR.APP)
+*DEBUG
+*IF R.APP THEN
+*Y.RECORD.ID.I = Y.ALT.ID
+
+*Y.INT.TYPE = 'ORC'
+*Y.LOG.LEVEL = 'DEBUG'
+*Y.MSG = "Alternate ID : " : Y.RECORD.ID.I
+
+*CALL IDI.WRITE.LOG.INT(Y.INT.TYPE,Y.LOG.LEVEL,Y.MSG)
+*END
+
+*END
+*END
+
+        IF R.APP NE '' THEN
+            Y.REC.EXIST = 'YES'
+        END
+
+        IF Y.REC.EXIST EQ 'YES' AND Y.OVERWRITE EQ '' THEN
+            Y.FLAG = '-1'
+            Y.ERR.MSG = 'ID::=RECORD ALREADY EXIST'
+            GOSUB CHECK.FLAG
+        END
+        ELSE IF Y.REC.EXIST EQ 'YES' AND Y.OVERWRITE EQ 'ERROR' THEN
+            Y.FLAG = '-1'
+            Y.ERR.MSG = 'ID::=RECORD ALREADY EXIST'
+            GOSUB CHECK.FLAG
+        END
+        ELSE
+            GOSUB GEN.OFS
+        END
+
+        IF Y.PROCESS EQ 'REVE' THEN
+            BREAK
+        END
+
+    NEXT I
+
+    RETURN
+
+*-----------------------------------------------------------------------------------------------------------------
+CHECK.FLAG:
+*-----------------------------------------------------------------------------------------------------------------
+*DEBUG
+    BEGIN CASE
+    CASE Y.SOURCE.TYPE = 'VERSION'
+        CALL GET.LOC.REF(APPLICATION,"IN.RESP.CODE",RESP.CODE.POS)
+        R.NEW(Y.T24.FIELD.NO.REF)<1,RESP.CODE.POS> = Y.ERR.MSG
+        CRT "ERR MSG : " : Y.ERR.MSG
+    END CASE
+
+    Y.OUT.MSG = Y.ERR.MSG
+    GOSUB REVERSAL
+
+    RETURN
+
+*-----------------------------------------------------------------------------------------------------------------
+GET.FIELD.VALUE:
+*-----------------------------------------------------------------------------------------------------------------
+*DEBUG
+    BEGIN CASE
+    CASE Y.SOURCE.TYPE = 'VERSION'
+        CALL FIELD.NAMES.TO.NUMBERS(Y.FIELD.SOURCE.NAME,R.STANDARD.SELECTION,Y.T24.FIELD.NO,YAF,YAV,YAS,DATA.TYPE,ERR.MSG)
+        VALUE1 = R.NEW(Y.T24.FIELD.NO.REF)<1,FIELD.NAME.POS,MLT>
+        VALUE2 = R.NEW(Y.T24.FIELD.NO)<1,MLT>
+    CASE Y.SOURCE.TYPE = 'READ'
+        CALL FIELD.NAMES.TO.NUMBERS(Y.FIELD.SOURCE.NAME,R.STANDARD.SELECTION,Y.T24.FIELD.NO,YAF,YAV,YAS,DATA.TYPE,ERR.MSG)
+*DEBUG
+        CALL @Y.APP.SOURCE(Y.READ.ID,R.APP)
+*DEBUG
+        VALUE1 = R.APP<Y.T24.FIELD.NO.REF,FIELD.NAME.POS,MLT>
+        VALUE2 = R.APP<Y.T24.FIELD.NO><1,MLT>
+    CASE Y.SOURCE.TYPE = 'TEXTFILE'
+        Y.POS = FIELD(Y.FIELD.SOURCE.NAME,",",1)
+        Y.LENGHT = FIELD(Y.FIELD.SOURCE.NAME,",",2)
+        IF NUM(Y.LENGHT) THEN
+            VALUE2 = INTEXT[Y.POS,Y.LENGHT]
+            VALUE2 = TRIM(VALUE2, " ", "B")
+        END
+        ELSE
+            VALUE2 = FIELD(INTEXT,Y.LENGHT,Y.POS)
+            VALUE2 = TRIM(VALUE2, " ", "B")
+        END
+    END CASE
+
+    IF Y.FIELD.LRT EQ 'YES' THEN
+        Y.FIELD = VALUE1
+    END ELSE
+        Y.FIELD = VALUE2
+    END
+
+
+    RETURN
+
+
+*-----------------------------------------------------------------------------------------------------------------
+GET.INPUT.ID:
+*-----------------------------------------------------------------------------------------------------------------
+*DEBUG
+    Y.RECORD.ID.I = R.PAR<INPUT.OFS.RECORD.ID, I>
+    BEGIN CASE
+    CASE Y.RECORD.ID.I[1,1] = '@'
+        Y.RTN = FIELD(Y.RECORD.ID.I, '@', 2)
+        CALL @Y.RTN(Y.RET.VALUE)
+        Y.RECORD.ID.I = Y.RET.VALUE
+
+**ADD TO LOG THE ROUTINE
+**BY RIZKY
+        Y.INT.TYPE = 'ORC'
+        Y.LOG.LEVEL = 'DEBUG'
+        Y.MSG = "Routine ID : " : Y.RTN : " , Output : " : Y.RECORD.ID.I
+
+        CALL IDI.WRITE.LOG.INT(Y.INT.TYPE,Y.LOG.LEVEL,Y.MSG)
+
+    CASE Y.RECORD.ID.I[1,1] = '#'
+        Y.POS = FIELD(Y.RECORD.ID.I,",",1)
+        Y.POS = FIELD(Y.POS,"#",2)
+        Y.LENGHT = FIELD(Y.RECORD.ID.I,",",2)
+        Y.RECORD.ID.I = INTEXT[Y.POS,Y.LENGHT]
+        Y.RECORD.ID.I = TRIM(Y.RECORD.ID.I, " ", "B")
+    END CASE
+
+    RETURN
+
+*-----------------------------------------------------------------------------------------------------------------
+GEN.OFS:
+*-----------------------------------------------------------------------------------------------------------------
+*DEBUG
+    Y.PROCESS = 'INPUT'
+    CRT 'PROCESS : ':Y.PROCESS
+    IF NOT(Y.MLT.OFS) THEN
+        Y.CNT.MLT = 1
+    END ELSE
+        Y.FIELD.SOURCE.NAME = Y.MLT.OFS
+        MLT = ''
+        GOSUB GET.FIELD.VALUE
+*DEBUG
+        Y.CNT.MLT = DCOUNT(Y.FIELD, @VM)
+    END
+*DEBUG
+    FOR MLT = 1 TO Y.CNT.MLT
+        OFS.MSG = ""
+        OFS.DTL = ""
+
+        GOSUB GET.INPUT.ID
+
+        OFS.HDR = Y.VERSION.I:'/':Y.FUNCTION:'/PROCESS,':Y.USER:'/':Y.PASSWORD:'/':Y.COMPANY:',':Y.RECORD.ID.I:'/'
+
+        GOSUB GEN.FIELD.OFS
+
+        OFS.MSG = OFS.HDR : OFS.DTL
+
+        Y.MSG = OFS.MSG
+
+        Y.ROUTINE = "IDI.CALL.OFS"
+
+**REMARK TO BE MOVED TO CONDITION BELOW
+**REMARK BY RIZKY
+*        CALL @Y.ROUTINE
+
+**ADD NEW CONDITION AND Y.REC.EXIST EQ 'YES'
+**BY RIZKY
+        IF Y.OVERWRITE EQ 'SKIP' AND Y.REC.EXIST EQ 'YES' THEN
+            Y.FLAG = '1'
+
+            IF Y.PROCESS EQ 'INPUT' AND Y.MLT.OFS THEN
+                IF MLT = Y.CNT.MLT THEN
+                    Y.REC.IDX :=Y.REC.ID:@VM
+                END
+                ELSE
+                    Y.REC.IDX :=Y.REC.ID:@SM
+                END
+            END
+            ELSE IF Y.PROCESS EQ 'INPUT' AND Y.MLT.OFS EQ '' THEN
+                Y.REC.IDX :=Y.REC.ID:@VM
+            END
+
+**ADD TO LOG THE ROUTINE
+**BY RIZKY
+            Y.INT.TYPE = 'ORC'
+            Y.LOG.LEVEL = 'DEBUG'
+            Y.MSG = "SKIP Transaction : " : Y.VERSION.I
+
+            CALL IDI.WRITE.LOG.INT(Y.INT.TYPE,Y.LOG.LEVEL,Y.MSG)
+
+        END
+        ELSE
+            CALL @Y.ROUTINE
+        END
+
+        IF Y.FLAG NE '1' THEN
+            GOSUB CHECK.FLAG
+            BREAK
+        END
+    NEXT MLT
+
+    RETURN
+
+*-----------------------------------------------------------------------------------------------------------------
+GEN.FIELD.OFS:
+*-----------------------------------------------------------------------------------------------------------------
+*DEBUG
+    FOR J = 1 TO Y.CNT.FIELD
+        IF Y.PROCESS EQ 'INPUT' THEN
+            Y.FIELD.NAME = R.PAR<INPUT.OFS.FIELD.NAME, I, J>
+            Y.FIELD.SOURCE.NAME = R.PAR<INPUT.OFS.FIELD.SOURCE.NAME, I, J>
+            Y.FIELD.VALUE = R.PAR<INPUT.OFS.FIELD.VALUE, I, J>
+            Y.FIELD.LRT = R.PAR<INPUT.OFS.FIELD.LRT, I, J>
+        END
+        ELSE
+            Y.FIELD.NAME = R.PAR<INPUT.OFS.FLD.NAME.REVE, I, J>
+            Y.FIELD.SOURCE.NAME = R.PAR<INPUT.OFS.FLD.SOURCE.REVE, I, J>
+            Y.FIELD.VALUE = R.PAR<INPUT.OFS.FLD.VALUE.REVE, I, J>
+            Y.FIELD.LRT = R.PAR<INPUT.OFS.FLD.LRT.REVE, I, J>
+        END
+
+        IF Y.FIELD.LRT EQ 'YES' THEN
+            CALL GET.LOC.REF(APPLICATION,Y.FIELD.NAME,FIELD.NAME.POS)
+        END
+
+        GOSUB GET.FIELD.VALUE
+*DEBUG
+        IF Y.FIELD.VALUE EQ "" THEN
+            Y.SAVE.FIELD = Y.FIELD
+            GOSUB CONSTRUCT.FIELD
+        END ELSE
+            FINDSTR "@" IN Y.FIELD.VALUE SETTING Ap, Vp THEN
+                Y.RTN = FIELD(Y.FIELD.VALUE, "@", 2)
+                CALL @Y.RTN(Y.RET.VALUE)
+                Y.FIELD.VALUE = Y.RET.VALUE
+
+**ADD TO LOG THE ROUTINE
+**BY RIZKY
+                Y.INT.TYPE = 'ORC'
+                Y.LOG.LEVEL = 'DEBUG'
+                Y.MSG = "Routine FIELD : " : Y.RTN : " , Output : " : Y.FIELD.VALUE
+
+                CALL IDI.WRITE.LOG.INT(Y.INT.TYPE,Y.LOG.LEVEL,Y.MSG)
+
+            END
+            Y.SAVE.FIELD = Y.FIELD.VALUE
+
+*modified by galuh
+            Y.SAVE.FIELD = CHANGE(Y.SAVE.FIELD,'_',"'_'")
+
+            GOSUB CONSTRUCT.FIELD
+        END
+    NEXT J
+
+    RETURN
+*-----------------------------------------------------------------------------------------------------------------
+CONSTRUCT.FIELD:
+*-----------------------------------------------------------------------------------------------------------------
+*DEBUG
+*ADD BY RIZKY TO REMOVE TRAILING SIGN OF MULTIVALUE
+    Y.SAVE.FIELD = TRIM(Y.SAVE.FIELD,@VM,"T")
+    Y.SAVE.FIELD = TRIM(Y.SAVE.FIELD,@SM,"T")
+**
+    Y.COUNT.FIELD.VM = DCOUNT(Y.SAVE.FIELD, @VM)
+    Y.COUNT.FIELD.SM = DCOUNT(Y.SAVE.FIELD, @SM)
+
+**add by rizky
+**the case is not run if  = 0
+    IF Y.COUNT.FIELD.VM EQ '' OR Y.COUNT.FIELD.VM EQ '0' THEN Y.COUNT.FIELD.VM = 1
+    IF Y.COUNT.FIELD.SM EQ '' OR Y.COUNT.FIELD.SM EQ '0' THEN Y.COUNT.FIELD.SM = 1
+**
+
+    BEGIN CASE
+    CASE Y.COUNT.FIELD.VM GT 1
+        FOR I.VM = 1 TO Y.COUNT.FIELD.VM
+            Y.FIELD.CUT = FIELD(Y.SAVE.FIELD, @VM, I.VM)
+            OFS.DTL := ',':Y.FIELD.NAME:':':I.VM:':1=':Y.FIELD.CUT
+        NEXT I.VM
+    CASE Y.COUNT.FIELD.SM GT 1
+        FOR I.SM = 1 TO Y.COUNT.FIELD.SM
+            Y.FIELD.CUT = FIELD(Y.SAVE.FIELD, @SM, I.SM)
+            OFS.DTL := ',':Y.FIELD.NAME:':':I.SM:':1=':Y.FIELD.CUT
+        NEXT I.SM
+    CASE Y.COUNT.FIELD.VM EQ 1 OR Y.COUNT.FIELD.SM EQ 1
+        OFS.DTL := ',':Y.FIELD.NAME:':1:1=':Y.SAVE.FIELD
+    END CASE
+
+    RETURN
+
+*-----------------------------------------------------------------------------------------------------------------
+REVERSAL:
+*-----------------------------------------------------------------------------------------------------------------
+*DEBUG
+    Y.PROCESS = 'REVE'
+    CRT 'PROCESS : ':Y.PROCESS
+    IF Y.MLT.OFS THEN
+        II = I
+        III = II
+    END
+    ELSE
+        II = I-1
+        III = II
+    END
+    FOR L = 1 TO III
+        Y.FUNCTION.R = ''
+        Y.VERSION.R =  R.PAR<INPUT.OFS.VERSION.REVE, II>
+        Y.FUNCTION.R = R.PAR<INPUT.OFS.TYPE.REVE, II>
+        Y.COMPANY.R = R.PAR<INPUT.OFS.COMPANY, II>
+        IF Y.COMPANY.R[1,1] = '@' THEN
+            Y.RTN = FIELD(Y.COMPANY.R, '@', 2)
+            CALL @Y.RTN(Y.RET.VALUE)
+            Y.COMPANY.R = Y.RET.VALUE
+            Y.INT.TYPE = 'ORC'
+            Y.LOG.LEVEL = 'DEBUG'
+            Y.MSG = "Routine COMPANY : " : Y.RTN : " , Output : " : Y.COMPANY.R
+
+            CALL IDI.WRITE.LOG.INT(Y.INT.TYPE,Y.LOG.LEVEL,Y.MSG)
+
+        END
+*DEBUG
+        Y.RECORD.ID.R = Y.REC.IDX<1, II>
+        Y.USER.R = R.PAR<INPUT.OFS.USER, II>
+        Y.PASSWORD.R = R.PAR<INPUT.OFS.PASSWORD, II>
+        Y.FLD.REVE = R.PAR<INPUT.OFS.FLD.NAME.REVE, II>
+
+        IF Y.FUNCTION.R NE 'NO' THEN
+            GOSUB GEN.OFS.REVERSAL
+        END
+        II -= 1
+
+    NEXT L
+
+    RETURN
+*-----------------------------------------------------------------------------------------------------------------
+GEN.OFS.REVERSAL:
+*-----------------------------------------------------------------------------------------------------------------
+*DEBUG
+    Y.MLT.OFS = R.PAR<INPUT.OFS.MULTI.OFS.KEY>
+    IF NOT(Y.MLT.OFS) THEN
+        Y.CNT.MLT = 1
+    END
+    ELSE
+        Y.CNT.MLT = FIELD(Y.REC.IDX, @VM, II)
+
+        Y.CNT.MLT = DCOUNT(Y.CNT.MLT, @SM)
+
+        Y.LAST.ID = Y.REC.IDX<1, II, Y.CNT.MLT>
+
+        IF Y.REC.IDX<1, II, Y.CNT.MLT> EQ '' THEN
+            Y.CNT.MLT = Y.CNT.MLT - 1
+        END
+
+    END
+    FOR MLT = 1 TO Y.CNT.MLT
+        IF Y.MLT.OFS THEN
+            Y.RECORD.ID.R = Y.REC.IDX<1, II, MLT>
+        END
+
+        OFS.MSG = ""
+
+        OFS.MSG = Y.VERSION.R:'/':Y.FUNCTION.R:'/PROCESS,':Y.USER.R:'/':Y.PASSWORD.R:'/':Y.COMPANY.R:',':Y.RECORD.ID.R
+
+        Y.CNT.FIELD = DCOUNT(Y.FLD.REVE, @SM)
+        IF Y.FUNCTION.R EQ 'I' THEN
+            GOSUB GEN.FIELD.OFS
+            OFS.MSG = OFS.MSG:OFS.DTL
+        END
+*DEBUG
+        Y.ROUTINE = "IDI.CALL.OFS"
+        CALL @Y.ROUTINE
+*DEBUG
+    NEXT MLT
+
+    RETURN
+END
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,42 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE IDIE.BUILD.REVE.SETTLE.DATE(ENQ.DATA)
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+
+*-----------------------------------------------------------------------------
+* Mengubah format selection input field Tanggal Efektif dari MMDD menjadi DDMM
+*-----------------------------------------------------------------------------
+	
+    LOCATE 'SETTLE.DATE' IN ENQ.DATA<2,1> SETTING Y.POS THEN
+        Y.SD = ENQ.DATA<4,Y.POS>
+        IF Y.SD NE '' THEN
+            Y.DATE = Y.SD[3,2]
+            Y.MONTH = Y.SD[1,2]
+        END
+        ENQ.DATA<4,Y.POS> = Y.DATE:Y.MONTH
+    END
+
+*-----------------------------------------------------------------------------
+* Menampilkan semua data yang memiliki Record Status = FAILED
+*-----------------------------------------------------------------------------
+
+    LOCATE 'IN.STATUS.REC' IN ENQ.DATA<2,1> SETTING Y.POS.1 THEN
+        Y.STATUS = ENQ.DATA<4,Y.POS.1>
+        IF Y.STATUS NE '' THEN
+            IF Y.STATUS EQ "FAILED" THEN
+                Y.STATUS = "REVERSING PROCESSING Error"
+            END
+            ENQ.DATA<4,Y.POS.1> = Y.STATUS
+        END
+    END
+
+    RETURN
+
+
+
+
+

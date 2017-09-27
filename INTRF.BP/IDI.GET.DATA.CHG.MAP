@@ -1,0 +1,35 @@
+*-----------------------------------------------------------------------------
+* <Rating>-2</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE IDI.GET.DATA.CHG.MAP(Y.ID.RECORD,Y.APPLICATION.READ,R.APP)
+**ROUTINE TO READ DATA CHARGES IDIH.WS.DATA.FT.MAP
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.IDIH.WS.DATA.FT.MAP
+    $INSERT I_IDI.GET.DATA.FT.MAP.COMMON
+    $INSERT I_F.IDIH.IN.FT.JOURNAL.PAR
+
+    Y.NO.FT = ''
+    Y.APPLICATION.READ = ''
+    FN.APP = ''
+    F.APP = ''
+    R.APP = ''
+
+    FN.APP  = 'F.IDIH.IN.FT.JOURNAL.PAR'
+    F.APP = ''
+    CALL OPF(FN.APP,F.APP)
+
+    CALL F.READ(FN.APP,Y.ID.RECORD,R.APP,F.APP,ERR)
+*Y.IN.UNIQUE.ID = R.APP<WS.DATA.FT.IN.UNIQUE.ID>
+*Y.NO.FT = R.APP<WS.DATA.FT.NO.FT>
+
+    Y.APPLICATION.READ = 'IDIH.IN.FT.JOURNAL.PAR'
+
+    RETURN
+
+END
+
+
+
+
+

@@ -1,0 +1,19 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE IDIE.CONV.TRANS.CODE
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+
+    BEGIN CASE
+    CASE O.DATA  EQ '103401' OR O.DATA EQ '1'
+        O.DATA ="Setor Tunai Wow! iB"
+    CASE O.DATA  EQ '103501' OR O.DATA EQ '2'
+        O.DATA ="Tarik Tunai Wow! iB"
+    END CASE
+
+    RETURN
+END
+

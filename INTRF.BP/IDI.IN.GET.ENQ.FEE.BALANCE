@@ -1,0 +1,48 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE IDI.IN.GET.ENQ.FEE.BALANCE
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+    $INSERT I_F.IDIH.IN.FT.JOURNAL.PAR
+    $INSERT I_IDI.WS.INC.PRE.PROCESS.COMMON
+    $INSERT I_F.ACCOUNT
+
+    FN.JRN.PAR = 'F.IDIH.IN.FT.JOURNAL.PAR'
+    F.JRN.PAR = ''
+    CALL OPF(FN.JRN.PAR,F.JRN.PAR)
+
+    FN.ACCT = 'FBNK.ACCOUNT'
+    F.ACCT = ''
+    CALL OPF(FN.ACCT,F.ACCT)
+
+    FINDSTR 'IN.UNIQUE.ID' IN Y.MSG.SHARE SETTING AP,VP,SP THEN
+        Y.IN.UNIQUE.ID = Y.MSG.SHARE<AP,2>
+    END ELSE
+        Y.IN.UNIQUE.ID = 'NO'
+    END
+
+    Y.ID.ACC = O.DATA
+
+    CALL F.READ(FN.JRN.PAR,Y.IN.UNIQUE.ID,R.JRN.PAR,F.JRN.PAR,ERR)
+    IF R.JRN.PAR NE '' THEN
+        Y.FEE.ENQ = R.JRN.PAR<JOURNAL.PAR.DEFAULT.AMT>
+    END
+
+    O.DATA = Y.FEE.ENQ
+
+    RETURN
+END
+
+
+
+
+
+
+
+
+
+
+
+

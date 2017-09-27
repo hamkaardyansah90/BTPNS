@@ -1,0 +1,96 @@
+*-----------------------------------------------------------------------------
+* <Rating>180</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE IDI.WS.CONVERT.CHAR.OFS(Y.MSG,Y.OFS.APP)
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.IDIH.WS.CHAR.CONV.PARAM
+
+    GOSUB PROCESS
+
+    RETURN
+
+PROCESS:
+
+    CONVERT ',' TO FM IN Y.MSG
+    CALL GET.STANDARD.SELECTION.DETS(Y.OFS.APP,R.SS)
+
+    Y.COUNT = DCOUNT(Y.MSG,@FM)
+
+    FOR I=1 TO Y.COUNT
+        Y.VAR = Y.MSG<I>
+        Y.FIELD = FIELD(Y.VAR,":",1)
+        Y.VALUE = FIELD(Y.VAR,"=",2)
+
+        CONVERT "=" TO VM IN Y.MSG<I>
+
+        GOSUB CHECK.PARAMETER
+
+        IF Y.VALUE NE '' THEN
+            Y.MSG<I> = REPLACE(Y.MSG<I>,1,2;Y.VALUE)
+        END
+
+        CONVERT VM TO "=" IN Y.MSG<I>
+
+        CALL FIELD.NAMES.TO.NUMBERS(Y.FIELD,R.SS,Y.T24.FIELD.NO,YAF,YAV,YAS,DATA.TYPE,ERR.MSG)
+
+        Y.NUM = 0
+
+        IF Y.T24.FIELD.NO EQ '' THEN Y.T24.FIELD.NO = 'BLANK'
+
+        IF NUM(Y.T24.FIELD.NO) THEN Y.NUM = 1
+
+        IF Y.NUM EQ 0 THEN
+            CALL GET.LOC.REF(Y.OFS.APP,Y.FIELD,Y.NO.POS)
+            IF Y.NO.POS EQ '' THEN
+                Y.VAR.BEF = Y.MSG<I-1>
+                Y.VAR.AFT = Y.MSG<I>
+                Y.MSG<I-1> = Y.VAR.BEF:@SM:Y.VAR.AFT
+                Y.VALUE = FIELD(Y.MSG<I-1>,"=",2)
+                GOSUB CHECK.PARAMETER
+
+                CONVERT "=" TO VM IN Y.MSG<I-1>
+                DEL Y.MSG<I>
+                Y.MSG<I-1> = REPLACE(Y.MSG<I-1>,1,2;Y.VALUE)
+                CONVERT VM TO "=" IN Y.MSG<I-1>
+
+                I = I-1
+                Y.COUNT = Y.COUNT - 1
+            END
+        END
+        Y.T24.FIELD.NO = ''
+        Y.NO.POS = ''
+    NEXT I
+
+    CONVERT @FM TO ',' IN Y.MSG
+    CONVERT @SM TO '?' IN Y.MSG
+
+    RETURN
+
+CHECK.PARAMETER:
+    FN.CONV.PAR = 'F.IDIH.WS.CHAR.CONV.PARAM' ; F.CONV.PAR = '' ; CALL OPF(FN.CONV.PAR,F.CONV.PAR)
+
+    CALL F.READ(FN.CONV.PAR,"SYSTEM",R.CONV.PAR,F.CONV.PAR,ERR)
+
+    Y.CHAR = R.CONV.PAR<CHAR.PARAM.CHARACTER>
+    Y.CONV = R.CONV.PAR<CHAR.PARAM.CONVERSION>
+
+    CONVERT VM TO FM IN Y.CHAR
+    CONVERT VM TO FM IN Y.CONV
+
+    Y.COUNT.PAR = DCOUNT(Y.CHAR,FM)
+
+    FOR X=1 TO Y.COUNT.PAR
+        Y.CHAR.X = Y.CHAR<X>
+        Y.CONV.X = Y.CONV<X>
+        FINDSTR Y.CHAR.X IN Y.VALUE SETTING AP,VP THEN
+            Y.VALUE = CHANGE(Y.VALUE,Y.CHAR.X,Y.CONV.X)
+        END
+    NEXT X
+
+    RETURN
+END
+
+
+

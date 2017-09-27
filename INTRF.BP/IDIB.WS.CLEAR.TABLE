@@ -1,0 +1,147 @@
+*-----------------------------------------------------------------------------
+* <Rating>-98</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE IDIB.WS.CLEAR.TABLE
+*-----------------------------------------------------------------------------
+*Routine to delete table
+*20140508
+*Create by galuh gigih; * galuh.pranata@anabatic.com
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.IDIH.WS.CLEAR.TABLE
+    $INSERT I_F.IDIH.WS.DATA.FT.MAP
+*DEBUG
+    GOSUB INIT
+    GOSUB PROCESS
+
+    RETURN
+*-----------------------------------------------------------------------------
+INIT:
+    FN.CL.TAB = "F.IDIH.WS.CLEAR.TABLE" ; F.CL.TAB = "" ; CALL OPF(FN.CL.TAB,F.CL.TAB)
+
+    CALL F.READ(FN.CL.TAB,'SYSTEM',R.CL.TAB,F.CL.TAB,ERR)
+
+
+
+    Y.TABLE.NM = R.CL.TAB<CL.TABLE.TABLE.NAME>
+    Y.FLAG.PRF = R.CL.TAB<CL.TABLE.FLAG.PREFIX>
+    Y.PRF.TABLE = R.CL.TAB<CL.TABLE.PREFIX.TABLE>
+    Y.DAY.KEEP = R.CL.TAB<CL.TABLE.DAYS.KEEP>
+    Y.TYPE.CLEAR = R.CL.TAB<CL.TABLE.TYPE.CLEAR>
+
+    CONVERT VM TO FM IN Y.TABLE.NM
+    CONVERT VM TO FM IN Y.FLAG.PRF
+    CONVERT VM TO FM IN Y.PRF.TABLE
+    CONVERT VM TO FM IN Y.DAY.KEEP
+    CONVERT VM TO FM IN Y.TYPE.CLEAR
+
+    Y.COUNT = DCOUNT(Y.TABLE.NM,FM)
+
+    RETURN
+*-----------------------------------------------------------------------------
+PROCESS:
+*DEBUG
+    FOR I=1 TO Y.COUNT
+        Y.TABLE.CURR = Y.TABLE.NM<I>
+        Y.FLAG.PRF.CURR = Y.FLAG.PRF<I>
+        Y.PRF.TABLE.CURR = Y.PRF.TABLE<I>
+        Y.DAY.KEEP.CURR = Y.DAY.KEEP<I>
+        Y.TYPE.CLEAR.CURR = Y.TYPE.CLEAR<I>
+
+**MODIFIED ATILHM(20150511) ADD FILE.CONTROL FOR TABLE
+        FN.TABLE.CURR = 'F.':Y.TABLE.CURR
+        F.TABLE.CURR = ''
+        CALL OPF(FN.TABLE.CURR,F.TABLE.CURR)
+
+        IF Y.FLAG.PRF.CURR EQ 'YES' THEN          ;*for table has julian date in ID and possibility to calculating day's keep by parameter .
+            GOSUB CHECK.DAYS.KEEP
+*GOSUB MOVE.REC
+        END
+        ELSE        ;*for table hasn't julian date in ID , cannot calculating , so the program will delete every COB's running .
+*MODIFIED ATILHM(20150511) FOR DELETE OR MOVE TO HIS FILE
+
+            Y.DAYS = "-":Y.DAY.KEEP.CURR:"C"
+            Y.TEMP = TODAY
+            CALL CDT("",Y.TEMP,Y.DAYS)
+            Y.END.DATE = Y.TEMP[3,6]
+            Y.START.DATE = TODAY[3,6]
+
+*<AGS_20150624 CHANGE SELECTION TO RECORD THAT OLDER THAN Y.KEEP.DAY
+*SEL.CMD.1 = 'SELECT ':FN.TABLE.CURR:' WITH DATE.TIME GE ':Y.END.DATE:'...':' AND DATE.TIME LE ':Y.START.DATE:'...'
+            SEL.CMD.1 = 'SELECT ':FN.TABLE.CURR:' WITH DATE.TIME LE ':Y.END.DATE:'...'
+
+            CALL EB.READLIST(SEL.CMD.1,SEL.LIST,'',NO.OF.REC,ERR)
+
+
+
+
+            IF SEL.LIST NE '' THEN
+*SEL.CMD = 'SELECT ':FN.TABLE.CURR
+                EXECUTE SEL.CMD.1
+                GOSUB MOVE.REC
+*DEL.CMD = 'DELETE ':FN.TABLE.CURR
+*EXECUTE DEL.CMD
+            END
+
+        END
+    NEXT I
+
+    RETURN
+*=========================================
+CHECK.DAYS.KEEP:
+*DEBUG
+    IF Y.DAY.KEEP.CURR GT 1 THEN
+        Y.DAYS = "-":Y.DAY.KEEP.CURR:"C"
+        Y.TEMP = TODAY
+        CALL CDT("",Y.TEMP,Y.DAYS)
+
+        CALL JULDATE(Y.TEMP,Y.JUL.DATE)
+        Y.JUL.DATE = Y.JUL.DATE[3,5]
+
+        Y.ID = Y.PRF.TABLE.CURR:Y.JUL.DATE:'00000'
+
+        SEL.CMD.1 = 'SELECT ':FN.TABLE.CURR:" WITH @ID LT ":Y.ID
+        CALL EB.READLIST(SEL.CMD.1,SEL.LIST,"",NO.OF.REC,ERR)
+
+        SEL.CMD = "SELECT ":FN.TABLE.CURR:" WITH @ID LT ":Y.ID
+    END
+    ELSE
+        SEL.CMD.1 = 'SELECT ':FN.TABLE.CURR:" WITH @ID LT ":Y.ID
+        CALL EB.READLIST(SEL.CMD.1,SEL.LIST,"",NO.OF.REC,ERR)
+
+        SEL.CMD = "SELECT ":FN.TABLE.CURR
+    END
+*DEBUG
+    IF SEL.LIST NE '' THEN
+        EXECUTE SEL.CMD
+        GOSUB MOVE.REC
+    END
+
+    RETURN
+*=========================================
+MOVE.REC:
+*DEBUG
+    BEGIN CASE
+    CASE Y.TYPE.CLEAR.CURR = 'MOVE.HIS'
+        COPY.CMD = "COPY FROM ":FN.TABLE.CURR:" TO F.":Y.TABLE.CURR:"$HIS OVERWRITING DELETING"
+        EXECUTE COPY.CMD
+    CASE Y.TYPE.CLEAR.CURR = 'DELETE'
+        DEL.CMD = 'DELETE ':FN.TABLE.CURR
+        EXECUTE DEL.CMD
+    END CASE
+
+    RETURN
+*=========================================
+END
+
+
+
+
+
+
+
+
+
+
+

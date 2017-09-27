@@ -1,0 +1,23 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE IDI.IN.GET.FT.CR.ACCT(Y.RET.VALUE)
+*ROUTINE TO GET ACCOUNT DEBET TRX FOR EXTRACT FILE CHARGES RECON ATM(ATILHM-20150430)
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.IDIH.WS.DATA.FT.MAP
+    $INSERT I_IDIB.GEN.FT.MAP.DATA.COMMON
+
+    Y.RET.VALUE = ''
+
+
+    Y.RET.VALUE = Y.CHG.ACC.CR
+    RETURN
+
+END
+
+
+
+
+
+

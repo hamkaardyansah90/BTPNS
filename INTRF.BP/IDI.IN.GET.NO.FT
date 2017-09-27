@@ -1,0 +1,34 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE IDI.IN.GET.NO.FT(Y.RET.VALUE)
+**ROUTINE TO GET NO.FT TRANSACTION FOR EXTRACT FILE RECON ATM(ATILHM-20150430)
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.IDIH.WS.DATA.FT.MAP
+    $INSERT I_IDIB.GEN.FT.MAP.DATA.COMMON
+    $INSERT I_F.IDIH.WS.DATA.FT.MAP
+
+    Y.RET.VALUE = ''
+*DEBUG
+    FN.FT.MAP = 'F.IDIH.WS.DATA.FT.MAP'
+    F.FT.MAP = ''
+    CALL OPF(FN.FT.MAP,F.FT.MAP)
+
+    Y.ID.FT.MAP = Y.REV.ID
+    CALL F.READ(FN.FT.MAP,Y.ID.FT.MAP,R.FT.MAP,F.FT.MAP,ERR)
+    Y.SUCCES.REC = R.FT.MAP<WS.DATA.FT.IN.STATUS.REC>
+    IF Y.SUCCES.REC EQ 'Success' THEN
+        Y.RET.VALUE = R.FT.MAP<WS.DATA.FT.NO.FT>
+    END ELSE
+        Y.RET.VALUE = ' '
+    END
+    RETURN
+END
+
+
+
+
+
+
+

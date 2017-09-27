@@ -1,0 +1,46 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE IDI.IN.GET.CREDIT.DATE(Y.RET.VALUE)
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.IDIH.WS.DATA.FT.MAP
+    $INSERT I_IDIB.GEN.FT.MAP.DATA.COMMON
+    $INSERT I_F.FUNDS.TRANSFER
+
+
+    FN.FUNDS.TRF = 'F.FUNDS.TRANSFER$HIS'
+    F.FUNDS.TRF = ''
+    CALL OPF(FN.FUNDS.TRF,F.FUNDS.TRF)
+
+    Y.ID.HIST = FIELDS(Y.NO.FT,';',1)
+
+    CALL F.READ.HISTORY(FN.FUNDS.TRF,Y.ID.HIST,R.FUNDS.TRF,F.FUNDS.TRF,ERR)
+    Y.CR.DATE = R.FUNDS.TRF<FT.CREDIT.VALUE.DATE>
+
+    IF Y.CR.DATE NE '' THEN
+        Y.RET.VALUE = Y.CR.DATE
+    END ELSE
+        Y.RET.VALUE = R.FUNDS.TRF<FT.DEBIT.VALUE.DATE>
+    END
+
+
+    RETURN
+
+END
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

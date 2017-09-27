@@ -1,0 +1,74 @@
+*-----------------------------------------------------------------------------
+* <Rating>-20</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE IDIE.BUILD.TRANS.CODE(ENQ.DATA)
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+
+
+    LOCATE "TRANS.CODE" IN ENQ.DATA<2,1> SETTING Y.POS THEN
+        Y.TRANS.CODE.POS = ENQ.DATA<4, Y.POS>
+        Y.OPERAND  =ENQ.DATA<3,Y.POS>
+    END
+
+    LOCATE "TRANS.TYPE" IN ENQ.DATA<2,1> SETTING Y.POS.1 THEN
+        Y.TRANS.TYPE =ENQ.DATA<4,Y.POS.1>
+        Y.OPERAND.TRANS = ENQ.DATA<3,Y.POS.1>
+    END
+
+    Y.FIELD.VALUE ="setor tunai wow! ib":FM:"tarik tunai wow! ib"
+    Y.FIELD.CONVERT ="103401":FM:"103501"
+
+    IF Y.TRANS.CODE.POS THEN
+        BEGIN CASE
+        CASE Y.OPERAND EQ "EQ"
+            Y.TRANS.CODE.POS = DOWNCASE(Y.TRANS.CODE.POS)
+            BEGIN CASE
+
+            CASE Y.TRANS.CODE.POS EQ "setor tunai wow! ib"
+                Y.TRANS.CODE.POS ="103401"
+            CASE Y.TRANS.CODE.POS EQ "tarik tunai wow! ib"
+                Y.TRANS.CODE.POS ="103501"
+            END CASE
+            IF Y.TRANS.CODE.POS THEN
+                ENQ.DATA<2,Y.POS> ="TRANS.CODE"
+                ENQ.DATA<3,Y.POS> ="EQ"
+                ENQ.DATA<4,Y.POS> =Y.TRANS.CODE.POS
+            END
+
+        CASE Y.OPERAND EQ "CT"
+            Y.TRANS.CODE.POS = DOWNCASE(Y.TRANS.CODE.POS)
+            FINDSTR Y.TRANS.CODE.POS IN Y.FIELD.VALUE SETTING PFM,PVM,PSM THEN
+                ENQ.DATA<2,Y.POS>= "TRANS.CODE"
+                ENQ.DATA<3,Y.POS>="EQ"
+                ENQ.DATA<4,Y.POS>= Y.FIELD.CONVERT<PFM>
+            END
+        END CASE
+    END
+
+    IF Y.TRANS.TYPE THEN
+        BEGIN CASE
+
+        CASE Y.OPERAND.TRANS EQ "EQ"
+            Y.TRANS.TYPE = DOWNCASE(Y.TRANS.TYPE)
+
+            BEGIN CASE
+            CASE Y.TRANS.TYPE EQ "direct"
+                Y.TRANS.CODE.1 = "00"
+            CASE Y.TRANS.TYPE EQ "indirect 1"
+                Y.TRANS.CODE.1 = "01"
+            CASE Y.TRANS.TYPE EQ "indirect 2"
+                Y.TRANS.CODE.1 = "02"
+            END CASE
+
+            ENQ.DATA<4,Y.POS.1> =Y.TRANS.CODE.1
+        END CASE
+    END
+    RETURN
+
+END
+
+
+

@@ -1,0 +1,30 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE IDI.GET.INF.REVERSAL.IDI(Y.RET.VALUE)
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_IDI.WS.INC.PRE.PROCESS.COMMON
+
+*DEBUG
+    FINDSTR 'IN.STAN' IN Y.MSG.SHARE SETTING AP,VP,SP THEN
+        Y.IN.STAN = Y.MSG.SHARE<AP,2>
+    END
+
+    FINDSTR 'IN.CHANNEL.ID' IN Y.MSG.SHARE SETTING AP,VP,SP THEN
+        Y.IN.CHANNEL.ID = Y.MSG.SHARE<AP,2>
+    END
+
+	    FINDSTR 'IN.TRNS.DT.TM' IN Y.MSG.SHARE SETTING AP,VP,SP THEN
+        Y.IN.TRNS.DT.TM = Y.MSG.SHARE<AP,2>
+    END
+
+    Y.RET.VALUE = Y.IN.CHANNEL.ID:Y.IN.STAN:Y.IN.TRNS.DT.TM
+
+    RETURN
+
+END
+
+
+
+

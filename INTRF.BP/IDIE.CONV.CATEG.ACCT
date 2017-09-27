@@ -1,0 +1,28 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+**SUBROUTINE TO SHOW ACCOUNT CATEGORY
+**CREATED ATIAGS(20150624)
+
+    SUBROUTINE IDIE.CONV.CATEG.ACCT
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+    $INSERT I_F.ACCOUNT 
+
+    Y.ACC.CATEG = O.DATA
+    O.DATA = ''
+
+    BEGIN CASE
+    CASE Y.ACC.CATEG GT 1000 AND Y.ACC.CATEG LT 2000
+        O.DATA = '20'
+    CASE Y.ACC.CATEG GT 6000 AND Y.ACC.CATEG LT 7000
+        O.DATA = '10'
+    END CASE
+
+    RETURN
+END
+
+
+

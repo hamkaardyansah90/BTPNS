@@ -1,0 +1,40 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE IDI.IN.GET.TRANS.TYPE(Y.RET.VALUE)
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.IDIH.WS.DATA.FT.MAP
+    $INSERT I_IDIB.GEN.FT.MAP.DATA.COMMON
+    $INSERT I_F.IDIH.IN.FT.JOURNAL.PAR
+
+    Y.RET.VALUE = ''
+*DEBUG
+    FN.JRN.PAR = 'F.IDIH.IN.FT.JOURNAL.PAR'
+    F.JRN.PAR = ''
+    CALL OPF(FN.JRN.PAR,F.JRN.PAR)
+
+
+    CALL F.READ(FN.JRN.PAR,Y.IN.UNIQUE.ID,R.JRN.PAR,F.JRN.PAR,ERR)
+    Y.RET.VALUE = R.JRN.PAR<JOURNAL.PAR.TRANSACTION.TYPE>
+
+
+    RETURN
+
+END
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

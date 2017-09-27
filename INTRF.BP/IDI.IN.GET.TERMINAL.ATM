@@ -1,0 +1,79 @@
+*-----------------------------------------------------------------------------
+* <Rating>-20</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE IDI.IN.GET.TERMINAL.ATM(Y.ACCT.1,Y.ACCT.2)
+*ROUTINE FOR GET ACCT FROM TABLE CASH ATM
+*CREATED ATILHM(20150304)
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.IDIH.TERMINAL.CASH.ATM
+    $INSERT I_F.FUNDS.TRANSFER
+
+*DEBUG
+    GOSUB INIT
+    GOSUB PROCESS
+
+    RETURN
+*------------------------------------------------------------
+*************
+INIT:
+*************
+*DEBUG
+    FN.CASH.ATM = 'F.IDIH.TERMINAL.CASH.ATM'
+    F.CASH.ATM = ''
+    CALL OPF(FN.CASH.ATM,F.CASH.ATM)
+
+
+    Y.APP = "FUNDS.TRANSFER"
+    Y.FIELDS = "IN.TERMINAL.ID"
+    CALL GET.LOC.REF(Y.APP,Y.FIELDS,Y.POS)
+*DEBUG
+    Y.IN.TERMINAL.ID.POS = Y.POS<1,1>
+
+    Y.TERMINAL.ID = R.NEW (FT.LOCAL.REF)<1,Y.IN.TERMINAL.ID.POS>
+
+    Y.ID = LEN(Y.TERMINAL.ID)
+    Y.SISA = Y.ID - 2
+    Y.ATM.ID = Y.TERMINAL.ID[1,Y.SISA]
+    Y.SEQ.ATM = RIGHT(Y.TERMINAL.ID,2)
+
+    Y.MSG.WRT = 'ATM ID :':Y.ATM.ID:'&':'SEQ ID :':Y.SEQ.ATM
+    CALL IDI.WRITE.LOG.INT('IN','DEBUG',Y.MSG.WRT)
+    RETURN
+*--------------------------------------------------------------
+PROCESS:
+*DEBUG
+    CALL F.READ(FN.CASH.ATM, Y.ATM.ID, R.CASH.ATM, F.CASH.ATM, CASH.ATM.ERR)
+    IF R.CASH.ATM THEN
+        FIND Y.SEQ.ATM IN R.CASH.ATM<CASH.ATM.SEQUENCE.COMP> SETTING POSCH,POSCHV THEN
+            Y.ACCT.2 = R.CASH.ATM<CASH.ATM.ACCT.COMP,POSCHV>
+        END
+    END
+    RETURN
+*---------------------------------------------------------------
+END
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

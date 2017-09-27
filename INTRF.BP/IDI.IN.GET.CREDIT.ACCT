@@ -1,0 +1,30 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE IDI.IN.GET.CREDIT.ACCT(Y.RET.VALUE)
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.IDIH.WS.DATA.FT.MAP
+    $INSERT I_IDIB.GEN.FT.MAP.DATA.COMMON
+    $INSERT I_F.FUNDS.TRANSFER
+
+    Y.RET.VALUE = ''
+
+    FN.FUNDS.TRF = 'F.FUNDS.TRANSFER$HIS'
+    F.FUNDS.TRF = ''
+    CALL OPF(FN.FUNDS.TRF,F.FUNDS.TRF)
+
+    Y.ID.HIST = Y.NO.FT
+    CALL F.READ.HISTORY(FN.FUNDS.TRF,Y.ID.HIST,R.FUNDS.TRF,F.FUNDS.TRF,ERR)
+    Y.RET.VALUE = R.FUNDS.TRF<FT.CREDIT.ACCT.NO>
+
+    IF Y.RET.VALUE EQ '' THEN
+        Y.RET.VALUE = Y.CR.ACCT.WS
+    END
+
+    RETURN
+
+END
+
+
+

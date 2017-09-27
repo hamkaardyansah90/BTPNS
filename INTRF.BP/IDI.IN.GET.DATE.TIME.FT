@@ -1,0 +1,56 @@
+*ROUTINE TO GET DATE.TIME IN FT RECORD
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE IDI.IN.GET.DATE.TIME.FT(Y.RET.VALUE)
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.IDIH.WS.DATA.FT.MAP
+    $INSERT I_IDIB.GEN.FT.MAP.DATA.COMMON
+    $INSERT I_F.FUNDS.TRANSFER
+*DEBUG
+    Y.RET.VALUE = ''
+
+    FN.FUNDS.TRF = 'FBNK.FUNDS.TRANSFER$HIS'
+    F.FUNDS.TRF = ''
+    CALL OPF(FN.FUNDS.TRF,F.FUNDS.TRF)
+
+    FN.WS.DATA = 'F.IDIH.WS.DATA.FT.MAP'
+    F.WS.DATA = ''
+    CALL OPF(FN.WS.DATA,F.WS.DATA)
+
+    IF Y.ID.MAP EQ 'TXT.GENCHGMAP' THEN
+*DEBUG
+    END
+
+    IF Y.NO.FT NE '' THEN
+        Y.ID.HIST = FIELDS(Y.NO.FT,';',1)
+    END ELSE
+        CALL F.READ(FN.WS.DATA,Y.ID.FT.MAP,R.WS.DATA,F.WS.DATA,ERR)
+        Y.ID.HIST = R.WS.DATA<WS.DATA.FT.NO.FT>
+    END
+
+    CALL F.READ.HISTORY(FN.FUNDS.TRF,Y.ID.HIST,R.FUNDS.TRF,F.FUNDS.TRF,ERR)
+    Y.RET.VALUE = R.FUNDS.TRF<FT.DATE.TIME>
+
+    RETURN
+END
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

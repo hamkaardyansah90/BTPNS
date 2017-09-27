@@ -1,0 +1,46 @@
+*-----------------------------------------------------------------------------
+* <Rating>-1</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE IDIH.IN.GET.CHARGE.ENQ.BAL(Y.READ.ID,R.APP)
+*ROUTINE TO GET R.APP FOR ENQUIRY BAL IN IDIH.PARAM.INPUT.OFS
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_IDI.WS.INC.PRE.PROCESS.COMMON
+*$INSERT I_F.IDIH.ENQUIRY.TEMP
+    $INSERT I_IDI.CALL.OFS.COMMON
+    $INSERT I_F.IDIH.WS.DATA.FT.MAP
+*DEBUG
+*ROUTINE IN IDI.INPUT.OFS TO GET DATA FORM TABLE IDIH.ENQUIRY.TEMP
+*FN.APP = 'F.IDIH.ENQUIRY.TEMP'
+*F.APP = ''
+*CALL OPF(FN.APP,F.APP)
+
+    FN.APP = 'F.IDIH.WS.DATA.FT.MAP'
+    F.APP = ''
+    CALL OPF(FN.APP,F.APP)
+
+*Y.ID = Y.IN.CHANNEL.ID:Y.IN.STAN:Y.IN.TRNS.DT.TM
+
+
+    CALL F.READ(FN.APP,Y.ID.REC.ENQ,R.APP,F.APP,ERR.APP)
+
+
+    RETURN
+
+END
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

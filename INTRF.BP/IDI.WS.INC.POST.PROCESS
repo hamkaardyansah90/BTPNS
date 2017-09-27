@@ -1,0 +1,749 @@
+*-----------------------------------------------------------------------------
+* <Rating>1015</Rating>
+* 15:47:44 23 FEB 2017 * 15:43:17 23 FEB 2017 * 15:42:51 23 FEB 2017 * 12:44:55 23 FEB 2017 * 12:42:23 23 FEB 2017 * 15:13:05 09 FEB 2017 * 15:11:16 09 FEB 2017 * 15:00:23 09 FEB 2017 * 14:53:24 09 FEB 2017 * 14:41:46 09 FEB 2017 
+* AT240301D01/btpnsqua * AT240301D01/btpnsqua * AT240301D01/btpnsqua * AT240301D01/btpnsqua * AT240301D01/btpnsqua * AT240301D01/btpnsqua * AT240301D01/btpnsqua * AT240301D01/btpnsqua * AT240301D01/btpnsqua * AT240301D01/btpnsqua 
+*-----------------------------------------------------------------------------
+    SUBROUTINE IDI.WS.INC.POST.PROCESS(INC.POST.DATA)
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_IDI.WS.INC.PRE.PROCESS.COMMON
+    $INSERT I_IDI.WS.INC.POST.PROCESS.COMMON
+    $INSERT I_IDI.WS.LOOKUP.VALUE.COMMON
+*$INSERT I_IDI.T24.CONSTRUCT.OFS.COMMON
+    $INSERT I_F.IDIH.T24.INTG.MAP
+    $INSERT I_F.IDIH.WS.DATA.FT.MAP
+    $INSERT I_IDI.CALL.OFS.COMMON
+*$INSERT I_F.IDIH.ENQUIRY.TEMP
+    $INSERT I_F.IDIH.IN.FT.JOURNAL.PAR
+    $INSERT I_IDIV.ACCT.READ.COMMON
+    $INSERT I_F.ACCOUNT
+    $INSERT I_IDIV.AU.STMT.CHG.TRX.COMMON
+    $INSERT I_F.IDIH.TERMINAL.CASH.ATM
+    $INSERT I_F.IDIH.CHANNEL.ID
+    $INSERT I_F.FUNDS.TRANSFER
+    $INSERT I_F.DATES
+    $INSERT IMB.BP I_F.IDIH.AC.LOCKED.AMT
+    $INSERT I_F.ACCT.GROUP.CONDITION
+    $INSERT I_F.IDIH.NETWORK.ACCT
+*$INSERT I_IDIE.GEN.OFS.CHRG.ENQ.COMMON
+
+*MODIFIED ATILHM(20150422) - FOR WRITE FLAG YES IN INACTIV.MARKER IF ACCT DORMANT
+*MODIFIED ATILHM(20150306) - FOR MAPPING RESPONSE
+*MODIFIED ATILHM(20150626) - FOR VALIDATION TERMINAL.ID
+*MODIFIED ATILHM(20151110) - FOR MINISTATEMENT THAT USED ACCT CLOSED
+*MODIFIED ATILHM(20151124) - VALIDATION FOR BALANCE USED IN ENQUIRY CHARGE
+*MODIFIED ATILHM(20151125) - GET PARAMETER FOR CHARGE ENQUIRY BALANCE OR MINISTATEMENT
+*MODIFIED ATILHM(20160119) - WRITE TABLE IDIH.WS.DATA.FT.MAP FROM DATA ERROR FUNDS.TRANSFER
+*-------------------------------------------------------------------------
+* MODIFIED BY      : GALUH GIGIH PRANATA
+* DATE             : 2017/02/23
+* NUMBER           : 615402
+* ACTIVITY         : REMOVE VALIDATION BALANCE FOR ENQUIRY WITH CHARGE
+*-------------------------------------------------------------------------
+* MODIFIED BY      : GALUH GIGIH PRANATA
+* DATE             : 2017/03/17
+* NUMBER           : 
+* ACTIVITY         : REMOVE THROW ERROR BALANCE FOR ENQUIRY WITH CHARGE
+*-------------------------------------------------------------------------
+
+    Y.DATA = ''
+    Y.INDICATOR = ''
+    Y.DATA.ERR = ''
+    Y.ID.MAPPING = ''
+    Y.OFS.APP = ''
+    Y.MSG.FORMAT = ''
+    Y.ID.MAPPING = ''
+    Y.ID.ACCT = ''
+
+    GOSUB INIT
+    GOSUB PROCESS
+
+*Y.FLAG.MINUS = ''
+
+    RETURN
+*-----------------------------------------------------------------------------
+INIT:
+
+    FN.FT.MAP = 'F.IDIH.WS.DATA.FT.MAP'
+    F.FT.MAP= ''
+    CALL OPF(FN.FT.MAP,F.FT.MAP)
+
+*FN.ENQ.TMP = 'F.IDIH.ENQUIRY.TEMP'
+*F.ENQ.TMP  = ''
+*CALL OPF(FN.ENQ.TMP,F.ENQ.TMP)
+
+    FN.JRN.PAR = 'F.IDIH.IN.FT.JOURNAL.PAR'
+    F.JRN.PAR = ''
+    CALL OPF(FN.JRN.PAR,F.JRN.PAR)
+
+    FN.ACCT.HIST = 'FBNK.ACCOUNT$HIS'
+    F.ACCT.HIST = ''
+    CALL OPF(FN.ACCT.HIST,F.ACCT.HIST)
+
+    FN.ACCT = 'FBNK.ACCOUNT'
+    F.ACCT = ''
+    CALL OPF(FN.ACCT,F.ACCT)
+
+    FN.TRMN.ID = 'F.IDIH.TERMINAL.CASH.ATM'
+    F.TRMN.ID = ''
+    CALL OPF(FN.TRMN.ID,F.TRMN.ID)
+
+    FN.CHN.ID = 'F.IDIH.CHANNEL.ID'
+    F.CHN.ID = ''
+    CALL OPF(FN.CHN.ID,F.CHN.ID)
+
+    FN.FUNDS.TRF = 'FBNK.FUNDS.TRANSFER'
+    F.FUNDS.TRF = ''
+    CALL OPF(FN.FUNDS.TRF,F.FUNDS.TRF)
+
+    FN.INTG.MAP = 'F.IDIH.T24.INTG.MAP'
+    F.INTG.MAP = ''
+    CALL OPF(FN.INTG.MAP,F.INTG.MAP)
+
+    FN.LOCK.AMT = 'FBNK.IDIH.AC.LOCKED.AMT'
+    F.LOCK.AMT = ''
+    CALL OPF(FN.LOCK.AMT,F.LOCK.AMT)
+
+    FN.ACCT.GRP = 'FBNK.ACCT.GROUP.CONDITION'
+    F.ACCT.GRP = ''
+    CALL OPF(FN.ACCT.GRP,F.ACCT.GRP)
+
+    FN.NET = 'F.IDIH.NETWORK.ACCT'
+    F.NET = ''
+    CALL OPF(FN.NET,F.NET)
+
+    FN.FUNDS.TRF.NAU = 'FBNK.FUNDS.TRANSFER$NAU'
+    F.FUNDS.TRF.NAU = ''
+    CALL OPF(FN.FUNDS.TRF.NAU,F.FUNDS.TRF.NAU)
+
+    FN.ACCL = 'FBNK.ACCOUNT.CLOSED' ; F.ACCL = ''
+    CALL OPF(FN.ACCL,F.ACCL)
+
+*--------------------------------------------------------------------------------------------------
+    FINDSTR 'IN.STAN' IN Y.MSG.SHARE SETTING AP,VP,SP THEN
+        Y.IN.STAN = Y.MSG.SHARE<AP,2>
+    END
+
+    FINDSTR 'IN.UNIQUE.ID' IN Y.MSG.SHARE SETTING AP,VP,SP THEN
+        Y.IN.UNIQUE.ID = Y.MSG.SHARE<AP,2>
+    END
+
+    FINDSTR 'IN.TERMINAL.ID' IN Y.MSG.SHARE SETTING AP,VP,SP THEN
+        Y.IN.TERMINAL.ID = Y.MSG.SHARE<AP,2>
+    END ELSE
+        Y.IN.TERMINAL.ID = 'NO'
+    END
+
+    FINDSTR 'IN.CHANNEL.ID' IN Y.MSG.SHARE SETTING AP,VP,SP THEN
+        Y.IN.CHANNEL.ID = Y.MSG.SHARE<AP,2>
+    END
+
+    FINDSTR 'IN.NETWORK.ID' IN Y.MSG.SHARE SETTING AP,VP,SP THEN
+        Y.IN.NETWORK.ID = Y.MSG.SHARE<AP,2>
+    END
+**-------------------------------------------------**
+
+    IF Y.OFS.APP.REQ EQ 'ENQUIRY.SELECT' THEN
+
+        CALL F.READ(FN.FT.MAP,Y.ID.REC.ENQ,R.FT.MAP,F.FT.MAP,ERR)
+        Y.DB.ACCT = R.FT.MAP<WS.DATA.FT.DEBIT.ACCT.NO>
+        Y.CR.ACCT = R.FT.MAP<WS.DATA.FT.CREDIT.ACCT.NO>
+        Y.DEBIT.COMP.CO = R.ACCT<AC.CO.CODE>
+    END
+
+
+    CALL F.READ(FN.JRN.PAR, Y.IN.UNIQUE.ID, R.JRN.PAR, F.JRN.PAR, ERR)
+    Y.CR.COMMTYP = R.JRN.PAR<JOURNAL.PAR.CHRG.CODE.CR>
+    Y.DB.COMMTYP = R.JRN.PAR<JOURNAL.PAR.CHRG.CODE.DB>
+    Y.FLAG.OFS = R.JRN.PAR<JOURNAL.PAR.PARAM.INPUT.OFS>
+    Y.FLG.TERMINAL.ID = R.JRN.PAR<JOURNAL.PAR.FLAG.TERMINAL.ID>
+    Y.DESC.JRN.PAR = R.JRN.PAR<JOURNAL.PAR.DESCRIPTION>
+    Y.DEBIT.ACCT.TYPE  = R.JRN.PAR<JOURNAL.PAR.DB.ACCT.TYPE>
+    Y.CREDIT.ACCT.TYPE  = R.JRN.PAR<JOURNAL.PAR.CR.ACCT.TYPE>
+    Y.DEBIT.ACCT.CONST  = R.JRN.PAR<JOURNAL.PAR.DB.ACCT.CONST>
+    Y.CREDIT.ACCT.CONST  = R.JRN.PAR<JOURNAL.PAR.CR.ACCT.CONST>
+    Y.TRANS.TYPE = R.JRN.PAR<JOURNAL.PAR.TRANSACTION.TYPE>
+
+*MODIFIED ATILHM(20151125) - GET PARAMETER FOR CHARGE ENQUIRY BALANCE OR MINISTATEMENT
+**PARAMETER FOR CHARGE ENQUIRY
+    Y.CREDIT.ACCT.ENQ = R.JRN.PAR<JOURNAL.PAR.CR.ACCT.CONST>
+    Y.AMT.CHG.ENQ = R.JRN.PAR<JOURNAL.PAR.DEFAULT.AMT>
+
+**PARAMETER FOR CHARGE AMOUNT
+    Y.FEE.CHG = R.JRN.PAR<JOURNAL.PAR.DEFAULT.AMT>
+
+**GET ACCT DEBET
+    BEGIN CASE
+    CASE Y.DEBIT.ACCT.TYPE EQ 'CUST'
+        Y.DB.CHG.ENQ = Y.DB.ACCT
+    CASE Y.DEBIT.ACCT.TYPE EQ 'CON'
+        Y.DB.CHG.ENQ = Y.DEBIT.ACCT.CONST
+    END CASE
+
+**GET ACCT CREDIT
+    BEGIN CASE
+    CASE Y.CREDIT.ACCT.TYPE EQ 'CUST'
+        Y.CR.CHG.ENQ = Y.DB.ACCT
+    CASE Y.CREDIT.ACCT.TYPE EQ 'CON'
+        Y.CR.CHG.ENQ = Y.CREDIT.ACCT.CONST
+    END CASE
+
+*---------------------------------------------------
+**GET PARAMETER TERMINAL.ID
+    Y.ID = LEN(Y.IN.TERMINAL.ID)
+    Y.SISA = Y.ID - 2
+    Y.ATM.ID = Y.IN.TERMINAL.ID[1,Y.SISA]
+    Y.SEQ.ATM = RIGHT(Y.IN.TERMINAL.ID,2)
+
+*FINDSTR 'AVAIL.BAL' IN INC.POST.DATA SETTING AP,VP,SP THEN
+*Y.IN.UNIQUE.ID = Y.MSG.SHARE<AP,2>
+*END
+
+**ID REQUEST TEMP TABLE
+
+*    IF Y.ID.REC EQ '' THEN
+*        Y.ID.REC = Y.IN.CHANNEL.ID:Y.IN.STAN:Y.IN.TRNS.DT.TM
+*    END
+
+    Y.ID.ORC = FIELD(INC.POST.DATA,'/',1)
+    Y.TEMP   = FIELD(INC.POST.DATA,',',1,1)
+    Y.TEMP.2 = FIELD(Y.TEMP,'/',2,2)
+    Y.INDICATOR = FIELD(Y.TEMP.2,'/',2)
+    Y.FLAG.RES = 'RESPONSE'
+
+    Y.DATA.ERR = FIELD(INC.POST.DATA,',',2,999999999)
+    Y.DATA.ERR1 = FIELD(INC.POST.DATA,',',2,999999999)
+
+    Y.INT.TYPE = 'IN'
+    Y.LOG.LEVEL = 'INFO'
+    Y.MSG = "RESPONSE MODIFIED:":Y.IN.STAN:" = ":INC.POST.DATA
+
+** MOIFIED ATILHM(20150306) - ID MAPPING RESPONSE
+    Y.ID.MAPPING = Y.RESP.MAP.ID
+    Y.MSG.2 = INC.POST.DATA
+
+**WRITING RESPONSE FROM T24 TO TABLE IDI.WS.IN.OUT.LOG
+
+
+    Y.MSG.WRT = "Response Orc T24 :":Y.TIME.TOT:CHAR(13):INC.POST.DATA
+    Y.INT.TYPE = 'ORC'
+    Y.LOG.LEVEL = 'INFO'
+    CALL IDI.WRITE.LOG.INT(Y.INT.TYPE,Y.LOG.LEVEL,Y.MSG.WRT)
+
+*BEGIN CASE
+*CASE Y.OFS.FUNCTION EQ 'I' OR Y.OFS.FUNCTION EQ 'R'
+
+*CASE Y.OFS.FUNCTION EQ ''
+*Y.ID.LOG = Y.ID.REC.ENQ
+*CALL IDI.WRITE.LOG.WEBSERVICE('OUT.ORC',Y.ID.LOG,Y.MSG.WRT)
+*END CASE
+*----------------------------------------------------
+
+    RETURN
+*-------------------------------------------------------------
+PROCESS:
+*---------------------------------------------------------------------
+
+    IF Y.OFS.APP.REQ NE 'ENQUIRY.SELECT' THEN
+        IF Y.INDICATOR EQ '-1' OR Y.INDICATOR EQ '-2' THEN
+            Y.DATA.ERR = FIELDS(Y.DATA.ERR,'=',2)
+
+            IF Y.DATA.ERR EQ '' THEN
+                Y.DATA = Y.ID.OFS:'/':'/':Y.INDICATOR:'/':"":',':Y.DATA.ERR1
+            END ELSE
+                Y.DATA = Y.ID.OFS:'/':'/':Y.INDICATOR:'/':"":',':Y.DATA.ERR
+            END
+
+        END ELSE
+            CALL IDI.T24.CONSTRUCT.OFS(Y.ID.MAPPING,Y.MSG.2)
+
+            IF Y.OFS.FUNCTION EQ 'R' THEN
+                Y.ID.REC = Y.ID.OFS
+            END
+            Y.DATA = Y.ID.OFS:'/':'/':Y.INDICATOR:'/':Y.OFS.APP.REQ:',':Y.MSG.2
+*Y.DATA = Y.MSG.2
+        END
+    END ELSE
+
+        Y.DATA = INC.POST.DATA
+
+**CHECKING FIELD TERMINAL.ID (FOR ATM IF NO RECORD NOT FOUND THEN ERROR)
+**VALIDATION RULE
+
+        CALL F.READ(FN.CHN.ID, Y.IN.CHANNEL.ID, R.CHN.ID, F.CHN.ID, ERR)
+        IF R.CHN.ID NE '' THEN
+            Y.FLG.CHN = R.CHN.ID<CHNL.ID.FLAG.CHANNEL>
+
+            GOSUB FIND.TERMINAL.ID
+
+*IF Y.FLG.CHN EQ 'ATM' AND Y.FLG.CHANNEL NE 'TRUE' AND Y.IN.NETWORK.ID EQ '' THEN
+            IF Y.FLG.CHN EQ 'ATM' AND Y.FLG.TERMINAL.ID EQ 'YES' THEN
+                BEGIN CASE
+                CASE Y.IN.TERMINAL.ID EQ 'NO'
+                    Y.DATA =  "TERMINAL ID NOT FOUND"
+                CASE Y.IN.TERMINAL.ID NE 'NO'
+
+                    IF  Y.FLG.CHANNEL EQ 'NO' THEN
+                        Y.DATA =  "TERMINAL ID NOT FOUND"
+                    END
+                END CASE
+
+*IF Y.IN.TERMINAL.ID NE 'NO' AND Y.FLG.CHANNEL NE 'NO' THEN
+
+                GOSUB VAL.ACCT.CLOSED
+                IF Y.FLAG.OFS EQ 'YES' THEN
+                    GOSUB VAL.DORMANT.ACCT
+                END
+            END ELSE
+
+                GOSUB VAL.ACCT.CLOSED
+                GOSUB VAL.DORMANT.ACCT
+
+*IF Y.FLAG.OFS EQ 'YES' THEN
+
+*CALL IDI.INPUT.OFS(Y.VERSION.OFS,"",Y.IN.UNIQUE.ID,"")
+
+**FLAGING ERROR CHARGES BAL ENQUIRY(I_IDI.CALL.OFS.COMMON)
+*IF Y.FLAG EQ '-1' OR Y.FLAG '-2' THEN
+
+*Y.ERR.MSG = FIELDS(Y.ERR.MSG,',',2)
+*Y.ERR.MSG = FIELDS(Y.ERR.MSG,'=',2)
+*Y.DATA = Y.ERR.MSG
+*END ELSE
+*Y.DATA = INC.POST.DATA
+*END
+
+*END
+            END
+        END
+
+    END
+**
+*<LHM<20150730> (CONVERT ERROR FOR ENQUIRY THAT USE CLOSED ACCOUNT)
+
+    FINDSTR "No Record Found" IN INC.POST.DATA SETTING Ap, Vp THEN
+
+        GOSUB VAL.ACCT.CLOSED
+        IF Y.FLG.ACCT.HIS EQ '' THEN
+
+            Y.DATA = "No Record Found"
+        END
+
+
+    END
+*--------------------------------------------------------------------------
+
+*<Validation reversal if id already reverse
+
+    FINDSTR "HISTORY RECORD MISSING" IN INC.POST.DATA SETTING Ap, Vp THEN
+        Y.DATA = "TRANSACTION ID ALREADY REVERSE"
+    END
+*-----------------------------------------------------------------------------
+
+*<Giving error for reversal that id not found
+
+    FINDSTR "TRANSACTION ID NOT SUPPLIED" IN INC.POST.DATA SETTING Ap, Vp THEN
+        Y.DATA = "HISTORY RECORD MISSING"
+        Y.INDICATOR = '-1'
+    END
+*------------------------------------------------------------------------------------------------
+
+*<VALIDATION FOR MINISTATEMENT 'NOT DATE FOR INPUT'
+
+    FINDSTR "Tidak ada transaksi untuk tanggal yg diberikan" IN INC.POST.DATA SETTING Ap, Vp THEN
+        Y.DATA = "No Record Found"
+    END
+*-----------------------------------------------------------------------------
+
+*<CONVERT MESAGE RESPONSE FOR TRANSFER ALREADY CREATED
+    FINDSTR "TRANSFER ALREADY CREATED" IN INC.POST.DATA SETTING Ap, Vp THEN
+        Y.FLAG.ID.FT.MAP = 'TRUE'
+        Y.DATA = "TRANSFER ALREADY AUTHORISED"
+    END
+*----------------------------------------------------------------------------
+
+*<CONVERT ERROR FOR TRANSACTION THAT USED ACCT CLOSED
+    FINDSTR "MISSING ACCOUNT - RECORD" IN INC.POST.DATA SETTING Ap, Vp THEN
+
+        GOSUB VAL.ACCT.CLOSED
+        IF Y.FLG.ACCT.HIS EQ '' THEN
+
+            Y.DATA = "No Record Found"
+        END
+
+    END
+
+*GOSUB WRITE.TEMP.POST
+
+    IF Y.DATA EQ '' THEN
+        INC.POST.DATA = INC.POST.DATA
+
+    END ELSE
+        INC.POST.DATA = Y.DATA
+    END
+
+**WRITING RESPONSE WEBSERVICE TO TABLE IDIH.WS.IN.OUT.LOG
+    Y.TIME.OUT = ICONV((TIME()),"MTS")
+    Y.TIME.TOT = Y.TIME.OUT - Y.TIME.IN
+
+    Y.TIME.TOT = OCONV(Y.TIME.TOT,"MTS")
+
+
+    Y.MSG.OUT := "Response T24 ":Y.TIME.TOT:CHAR(13):INC.POST.DATA
+    BEGIN CASE
+    CASE Y.OFS.FUNCTION EQ 'I' OR Y.OFS.FUNCTION EQ 'R'
+        Y.ID.LOG = Y.ID.REC
+        CALL IDI.WRITE.LOG.WEBSERVICE('OUT',Y.ID.LOG,Y.MSG.OUT)
+    CASE Y.OFS.FUNCTION EQ ''
+        Y.ID.LOG = Y.ID.REC.ENQ
+        CALL IDI.WRITE.LOG.WEBSERVICE('OUT',Y.ID.LOG,Y.MSG.OUT)
+    END CASE
+*--------------------------------------------
+    GOSUB WRITE.TEMP.POST
+    RETURN
+*---------------------------------------------------------------------------------
+*******
+WRITE.TEMP.POST:
+*******
+**write response to template table
+
+    IF Y.OFS.APP.REQ NE 'ENQUIRY.SELECT' THEN
+        Y.ID.WRT = Y.ID.OFS
+        CALL F.READ(FN.FT.MAP,Y.ID.WRT,R.FT.MAP,F.FT.MAP,FT.MAP.ERR)
+
+        IF R.FT.MAP NE '' THEN
+            IF Y.INDICATOR EQ '1' THEN
+                Y.IN.STATUS.REC = 'Success'
+*R.FT.MAP<WS.DATA.FT.IN.STATUS.REC> = Y.IN.STATUS.REC
+
+                FINDSTR "TRANSACTION ID NOT SUPPLIED" IN Y.ID.ORC SETTING Ap, Vp THEN
+                    Y.ID.ORC = ""
+                END
+                R.FT.MAP<WS.DATA.FT.NO.FT> = Y.ID.ORC
+
+                CALL F.READ(FN.INTG.MAP,Y.ID.REQ.INTG,R.INTG.MAP,F.INTG.MAP,ERR)
+                Y.APP.INTG.MAP = R.INTG.MAP<T24.INTG.MAP.APPLICATION>
+
+                IF Y.APP.INTG.MAP EQ 'FUNDS.TRANSFER' THEN
+                    CALL F.READ(FN.FUNDS.TRF,Y.ID.ORC,R.FUNDS.TRF,F.FUNDS.TRF,ERR)
+                    R.FT.MAP<WS.DATA.FT.DEBIT.ACCT.NO> = R.FUNDS.TRF<FT.DEBIT.ACCT.NO>
+                    R.FT.MAP<WS.DATA.FT.DEBIT.CURRENCY> = R.FUNDS.TRF<FT.DEBIT.CURRENCY>
+                    R.FT.MAP<WS.DATA.FT.DEBIT.AMOUNT> = R.FUNDS.TRF<FT.DEBIT.AMOUNT>
+                    R.FT.MAP<WS.DATA.FT.CREDIT.ACCT.NO> = R.FUNDS.TRF<FT.CREDIT.ACCT.NO>
+                    R.FT.MAP<WS.DATA.FT.CREDIT.CURRENCY> = R.FUNDS.TRF<FT.CREDIT.CURRENCY>
+                    R.FT.MAP<WS.DATA.FT.CREDIT.AMOUNT> = R.FUNDS.TRF<FT.CREDIT.AMOUNT>
+                    R.FT.MAP<WS.DATA.FT.TRANSACTION.TYPE> = R.FUNDS.TRF<FT.TRANSACTION.TYPE>
+                    Y.CR.DATE = R.FUNDS.TRF<FT.CREDIT.VALUE.DATE>
+                    Y.DB.DATE = R.FUNDS.TRF<FT.DEBIT.VALUE.DATE>
+
+                    IF Y.CR.DATE NE '' THEN
+                        R.FT.MAP<WS.DATA.FT.CREDIT.DATE> = Y.CR.DATE
+                    END ELSE
+                        R.FT.MAP<WS.DATA.FT.CREDIT.DATE> = Y.DB.DATE
+                    END
+
+
+                    BEGIN CASE
+                    CASE Y.CR.COMMTYP NE ''
+                        Y.COMM.TYPE = Y.CR.COMMTYP
+                    CASE Y.DB.COMMTYP NE ''
+                        Y.COMM.TYPE = Y.DB.COMMTYP
+                    CASE Y.CR.COMMTYP EQ '' AND Y.DB.COMMTYP EQ ''
+                        Y.COM.TYPE = 0
+                    END CASE
+
+                    R.FT.MAP<WS.DATA.FT.COMMISSION.TYPE> = Y.COMM.TYPE
+                    R.FT.MAP<WS.DATA.FT.PROCCESSING.DATE> = R.FUNDS.TRF<FT.DATE.TIME>
+                END
+
+            END
+            ELSE
+                IF Y.INDICATOR EQ '-1' AND Y.OFS.FUNCTION NE 'R' AND Y.FLAG.ID.FT.MAP NE 'TRUE' THEN
+**MODIFIED ATILHM(20160119)
+**WRITE TABLE IDIH.WS.DATA.FT.MAP FROM DATA ERROR FUNDS.TRANSFER
+
+                    CALL F.READ(FN.FUNDS.TRF.NAU,Y.ID.ORC,R.FUNDS.TRF.NAU,F.FUNDS.TRF.NAU,ERR)
+                    Y.DEBIT.ACCT.NAU = R.FUNDS.TRF.NAU<FT.DEBIT.ACCT.NO>
+*CONVERT " " TO FM IN Y.DEBIT.ACCT.NAU
+                    ACCT.DB.WS = FIELD(Y.DEBIT.ACCT.NAU, VM, 1)
+                    R.FT.MAP<WS.DATA.FT.DEBIT.ACCT.NO> = FIELD(Y.DEBIT.ACCT.NAU, VM, 1)
+                    R.FT.MAP<WS.DATA.FT.DEBIT.CURRENCY> = R.FUNDS.TRF.NAU<FT.DEBIT.CURRENCY>
+                    R.FT.MAP<WS.DATA.FT.DEBIT.AMOUNT> = R.FUNDS.TRF.NAU<FT.DEBIT.AMOUNT>
+                    R.FT.MAP<WS.DATA.FT.CREDIT.ACCT.NO> = R.FUNDS.TRF.NAU<FT.CREDIT.ACCT.NO>
+                    R.FT.MAP<WS.DATA.FT.CREDIT.CURRENCY> = R.FUNDS.TRF.NAU<FT.CREDIT.CURRENCY>
+                    R.FT.MAP<WS.DATA.FT.CREDIT.AMOUNT> = R.FUNDS.TRF.NAU<FT.CREDIT.AMOUNT>
+                    R.FT.MAP<WS.DATA.FT.TRANSACTION.TYPE> = R.FUNDS.TRF.NAU<FT.TRANSACTION.TYPE>
+
+                    BEGIN CASE
+                    CASE Y.CR.COMMTYP NE ''
+                        Y.COMM.TYPE = Y.CR.COMMTYP
+                    CASE Y.DB.COMMTYP NE ''
+                        Y.COMM.TYPE = Y.DB.COMMTYP
+                    CASE Y.CR.COMMTYP EQ '' AND Y.DB.COMMTYP EQ ''
+                        Y.COM.TYPE = 0
+                    END CASE
+
+                    R.FT.MAP<WS.DATA.FT.COMMISSION.TYPE> = Y.COMM.TYPE
+                    R.FT.MAP<WS.DATA.FT.PROCCESSING.DATE> = R.FUNDS.TRF.NAU<FT.DATE.TIME>
+*----------------------------------------------------------------------------------------
+                    Y.IN.STATUS.REC = 'Error'
+*R.FT.MAP<WS.DATA.FT.IN.STATUS.REC> = Y.IN.STATUS.REC
+                    R.FT.MAP<WS.DATA.FT.ERROR.DESC> = Y.DATA.ERR
+                    R.FT.MAP<WS.DATA.FT.NO.FT> = ''
+*R.FT.MAP<WS.DATA.FT.NO.FT> = Y.ID.ORC
+                    CALL F.DELETE(FN.FUNDS.TRF.NAU,Y.ID.ORC)
+
+
+                END
+            END
+
+**WRITE TABLE FOR TRANSACTION REVERSAL
+**DONT FILL DEBIT ACCOUNT BECAUSE, FOR REVERSAL USING TABLE HISTORY
+*IF Y.INDICATOR EQ '-1' AND Y.OFS.FUNCTION EQ 'R' AND(R.FT.MAP<WS.DATA.FT.NO.FT> NE '' OR R.FT.MAP<WS.DATA.FT.NO.FT> EQ '') THEN
+            IF Y.INDICATOR EQ '-1' AND Y.OFS.FUNCTION EQ 'R' THEN
+*IF Y.IN.STATUS.REC NE '' THEN
+                Y.IN.STATUS.REC = 'Error'
+                R.FT.MAP<WS.DATA.FT.ERROR.DESC> = Y.DATA.ERR
+*END
+            END
+            IF (Y.INDICATOR EQ '1' OR Y.INDICATOR EQ '-1') AND Y.OFS.FUNCTION EQ 'R' AND R.FT.MAP<WS.DATA.FT.NO.FT> NE '' THEN
+                Y.IN.STATUS.REC = 'REVERSING'
+            END
+*---------------------------------------------
+            R.FT.MAP<WS.DATA.FT.IN.STATUS.REC> = Y.IN.STATUS.REC
+
+        END
+
+**WRITE BACK DORMANT ACCT MAIN TRX
+        IF Y.DMNT.ACCT.ALL NE '' THEN
+
+            Y.JML.DRMNT = DCOUNT(Y.DMNT.ACCT.ALL,FM)
+            FOR X = 1 TO Y.JML.DRMNT
+                Y.ID.ACCT = Y.DMNT.ACCT.ALL<X,1>
+                CALL F.READ(FN.ACCT,Y.ID.ACCT,R.ACCT,F.ACCT,ERR)
+                R.ACCT<AC.INACTIV.MARKER> = 'Y'
+                CALL F.WRITE(FN.ACCT,Y.ID.ACCT,R.ACCT)
+                CALL JOURNAL.UPDATE('')
+            NEXT X
+
+        END
+        R.ACCT = ''
+**WRITE BACK DORMANT ACCT CHARGE ACCT
+        IF Y.DMNT.ACCT.CHG NE '' THEN
+            Y.JML.DMNT.CHG = DCOUNT(Y.DMNT.ACCT.CHG,FM)
+            FOR X = 1 TO Y.JML.DMNT.CHG
+                Y.ID.CHG = Y.DMNT.ACCT.CHG<X,1>
+                CALL F.READ(FN.ACCT,Y.ID.CHG,R.ACCT,F.ACCT,ERR)
+                R.ACCT<AC.INACTIV.MARKER> = 'Y'
+                CALL F.WRITE(FN.ACCT,Y.ID.CHG,R.ACCT)
+                CALL JOURNAL.UPDATE('')
+            NEXT X
+        END
+
+    END ELSE
+
+        Y.ID.WRT = Y.ID.REC.ENQ
+        CALL F.READ(FN.FT.MAP,Y.ID.WRT,R.FT.MAP,F.FT.MAP,FT.MAP.ERR)
+
+        Y.NO.FT.ENQ = R.FT.MAP<WS.DATA.FT.NO.FT>
+
+        IF Y.NO.FT.ENQ EQ '' THEN
+
+            Y.IN.STATUS.REC = 'ENQUIRY'
+
+            FINDSTR "TRANSACTION ID NOT SUPPLIED" IN Y.ID.ORC SETTING Ap, Vp THEN
+                Y.ID.ORC = ""
+            END
+
+* LOG NUMBER 615402
+
+            IF Y.FLG.ACCT.HIS OR Y.FLG.DRMNT.ACC OR Y.FLG.BAL.NOT.ENOUGH THEN
+                Y.IN.STATUS.REC = 'Error'
+            END
+
+        END ELSE
+            Y.IN.STATUS.REC = 'Success'
+
+* LOG NUMBER 615402
+            IF Y.FLG.ACCT.HIS OR Y.FLG.DRMNT.ACC OR Y.FLG.BAL.NOT.ENOUGH THEN
+                Y.IN.STATUS.REC = 'Error'
+            END
+            FINDSTR "TRANSACTION ID NOT SUPPLIED" IN Y.ID.ORC SETTING Ap, Vp THEN
+                Y.ID.ORC = ""
+            END
+        END
+
+        R.FT.MAP<WS.DATA.FT.IN.STATUS.REC> = Y.IN.STATUS.REC
+    END
+
+    CALL F.WRITE(FN.FT.MAP,Y.ID.WRT,R.FT.MAP)
+    CALL JOURNAL.UPDATE('')
+
+    RETURN
+
+
+*---------------------------------------------------------------------------------
+VAL.ACCT.CLOSED:
+**VALIDATION ACCT CLOSED FOR ENQUIRY
+*---------------------------------------------------------------------------------
+
+*MODIFIED BY GALUH; * 20170209
+*CHANGE THE LOGIC TO GET ACCOUNT CLOSED
+
+*SEL.STMT.PRINTED = "SELECT FBNK.ACCOUNT$HIS WITH @ID LIKE ":Y.DB.ACCT:"..."
+*CALL EB.READLIST(SEL.STMT.PRINTED,SEL.LIST,'',NO.OF.REC,ERR)
+*Y.ACCT.HIS = SEL.LIST<NO.OF.REC>
+*CALL F.READ(FN.ACCT.HIST, Y.ACCT.HIS, R.ACCT.HIST, F.ACCT.HIST, ERR)
+*Y.REC.ACCT.HIS = R.ACCT.HIS<AC.RECORD.STATUS>
+*IF R.ACCT.HIST NE '' AND R.ACCT.HIST<AC.RECORD.STATUS> EQ 'CLOSED' THEN
+*   Y.DATA = "Account Closed"
+*   Y.FLG.ACCT.HIS = "TRUE"
+*END
+
+    CALL F.READ(FN.ACCL,Y.DB.ACCT,R.ACCL,F.ACCL,ERR.ACCL)
+    IF NOT(ERR.ACCL) THEN
+        Y.DATA = "Account Closed"
+        Y.FLG.ACCT.HIS = "TRUE"
+    END
+
+*END HERE
+
+    RETURN
+*---------------------------------------------------------------------------------
+FIND.TERMINAL.ID:
+*---------------------------------------------------------------------------------
+
+    CALL F.READ(FN.TRMN.ID, Y.ATM.ID, R.TRMN.ID, F.TRMN.ID, ERR)
+
+    FIND Y.SEQ.ATM IN R.TRMN.ID<CASH.ATM.SEQUENCE.COMP> SETTING POSCH,POSCHV THEN
+        Y.FLG.CHANNEL = 'TRUE'
+    END ELSE
+        Y.FLG.CHANNEL = 'NO'
+    END
+
+    RETURN
+*---------------------------------------------------------------------------------
+VAL.DORMANT.ACCT:
+**VALIDATION FOR DORMANT ACCT FOR CHARGE ALL ENQURIY
+*---------------------------------------------------------------------------------
+
+    CALL F.READ(FN.ACCT,Y.DB.ACCT,R.ACCT,F.ACCT,ERR)
+
+    IF  R.ACCT<AC.INACTIV.MARKER> EQ 'Y' THEN
+        Y.DATA = "FT-DORMANT.DB"
+        Y.FLG.DRMNT.ACC = 'TRUE'
+    END
+
+* LOG NUMBER 615402
+*IF Y.FLG.DRMNT.ACC EQ '' THEN
+*MODIFIED ATILHM(20151124) - VALIDATION FOR BALANCE USED IN ENQUIRY CHARGE
+*VALIDATION BALANCE ACCOUNT WITH CHARGE
+*--------GET LOCKED AMT---------------------
+*SEL.ACCT.LOCK = "SELECT ":FN.LOCK.AMT:" WITH ACCOUNT EQ ":Y.DB.ACCT
+*CALL EB.READLIST(SEL.ACCT.LOCK, SEL.LIST, '',NO.OF.REC,ERR.SEL.ACCT)
+*LOOP
+*REMOVE Y.ID FROM SEL.LIST SETTING POS
+*WHILE Y.ID:POS
+*CALL F.READ(FN.LOCK.AMT, Y.ID, R.AC.LOCKED, F.LOCK.AMT, ERR.LOCK.AMT)
+*Y.TODATE = R.AC.LOCKED<ACLOCK.TO.DATE>
+*IF Y.TODATE GE TODAY OR Y.TODATE EQ '' THEN
+*Y.LOCKED.AMT += R.AC.LOCKED<ACLOCK.AMOUNT>
+*END
+*REPEAT
+*Y.TOT.LOCK.AMT = Y.LOCKED.AMT
+*Y.WORKING.BALANCE = R.ACCT<AC.WORKING.BALANCE>
+*Y.CON.GROUP = R.ACCT<AC.CONDITION.GROUP>
+*Y.CURR.ACCT = R.ACCT<AC.CURRENCY>
+*Y.ID.GRP.CON = Y.CON.GROUP:Y.CURR.ACCT
+*CALL F.READ(FN.ACCT.GRP, Y.ID.GRP.CON, R.ACCT.GRP, F.ACCT.GRP, ERR.ACCT.GRP)
+*Y.MIN.BAL.ACCT = R.ACCT.GRP<ACCT.GRP.MINIMUM.BAL>
+*Y.AVAIL.BAL = Y.WORKING.BALANCE - Y.TOT.LOCK.AMT - Y.MIN.BAL.ACCT
+*IF Y.AVAIL.BAL LT Y.FEE.CHG AND Y.FLG.ACCT.HIS NE 'TRUE' THEN
+*Y.DATA = 'FT-BALANCE.NOT.ENOUGH'
+*Y.FLG.BAL.NOT.ENOUGH = 'TRUE'
+*END
+*END
+*IF Y.FLAG.MINUS = 'YES' THEN
+*Y.DATA = 'FT-BALANCE.NOT.ENOUGH'
+*Y.FLG.BAL.NOT.ENOUGH = 'TRUE'
+*END
+
+    RETURN
+*---------------------------------------------------------------------------------
+
+END
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,253 @@
+*-----------------------------------------------------------------------------
+* <Rating>5</Rating>
+* MODIFIED BY FIRLI; 21 JAN 2010
+*                  ; 22 FEB 2010
+*                  ; 13 AUG 2010
+* ROUTINE TO GET NARRATIVE FOR ACCOUNT.STATEMENT
+*
+* Modified by Julian Gerry, 07 February 2012, Change priority to get FT payment details
+* Modified by Laily , 28 Feb 2012, check narrative in data capture transaction
+* Modified by ATILHM (20151217), MODIFIED TO GET NARATIVE FOR FUNDS.TRANSFER MINISATTEMENT(GET FROM DESCRIPTIPN STMT.ENTRY)
+*-----------------------------------------------------------------------------
+    SUBROUTINE IDIE.CONV.AC.STMT.PAY.DET.INTF
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+    $INSERT I_F.TELLER
+    $INSERT I_F.TRANSACTION
+    $INSERT I_F.TELLER.TRANSACTION
+    $INSERT I_F.FUNDS.TRANSFER
+    $INSERT I_F.FT.TXN.TYPE.CONDITION
+    $INSERT ../IMB.BP I_F.IDCH.SKN.REASON.CODE
+    $INSERT ../IMB.BP I_F.IDCW.SKN.DATA.OUT.DB
+    $INSERT ../IMB.BP I_F.IDIH.BPAY.SERV.CODE
+    $INSERT ../IMB.BP I_F.ATM.CHG.TABLE
+    $INSERT I_F.DATA.CAPTURE
+    $INSERT I_F.STMT.ENTRY
+
+    GOSUB INIT
+    GOSUB PROCESS
+
+    RETURN
+*-----------------------------------------------------------------------------
+INIT:
+
+    FN.TT   = 'FBNK.TELLER'
+    F.TT    = ''
+    CALL OPF(FN.TT,F.TT)
+
+    FN.FT   = 'FBNK.FUNDS.TRANSFER'
+    F.FT    = ''
+    CALL OPF(FN.FT,F.FT)
+
+    FN.TRX   = 'FBNK.TRANSACTION'
+    F.TRX    = ''
+    CALL OPF(FN.TRX,F.TRX)
+
+    FN.FT.TXN   ='FBNK.FT.TXN.TYPE.CONDITION'
+    F.FT.TXN    =''
+    CALL OPF(FN.FT.TXN,F.FT.TXN)
+
+    FN.PAY = "F.IDIH.BPAY.SERV.CODE"
+    CALL OPF(FN.PAY,F.PAY)
+
+*FN.ATM = "F.ATM.CHG.TABLE"
+*CALL OPF(FN.ATM,F.ATM)
+
+    FN.DC   = 'FBNK.DATA.CAPTURE'
+    F.DC    = ''
+    CALL OPF(FN.DC,F.DC)
+**
+    FN.STMT = "F.STMT.ENTRY"
+    F.STMT = ""
+    CALL OPF(FN.STMT,F.STMT)
+
+    CALL GET.LOC.REF("TELLER","AT.PAYMENT.TO",Y.AT.POS)
+    CALL GET.LOC.REF("FUNDS.TRANSFER","AT.TXN.DESC",Y.AT.DESC.POS)
+    CALL GET.LOC.REF("FUNDS.TRANSFER","AT.CHG.CODE",Y.AT.CHG.CODE.POS)
+
+    Y.FT.DETAILS =""
+    Y.STMT.ID = ''
+    R.TT = ""
+    R.FT = ""
+
+    Y.DATA = O.DATA
+
+    RETURN
+*-----------------------------------------------------------------------------
+PROCESS:
+
+    Y.INIT=SUBSTRINGS(Y.DATA,1,2)
+    Y.STMT.ID = FIELD(Y.DATA,"*",4)
+    IF Y.INIT EQ 'FT' THEN
+        Y.FT.ID.TEMP = FIELD(Y.DATA,"*",1)
+        Y.FT.ID      = FIELD(Y.FT.ID.TEMP,"\",1)
+
+        CALL F.READ(FN.FT,Y.FT.ID,R.FT,F.FT,FT.ERR)
+
+        IF R.FT THEN
+            GOSUB FT.PROCESS
+        END ELSE
+            FN.FT = 'FBNK.FUNDS.TRANSFER$HIS'
+            F.FT  = ''
+            CALL OPF(FN.FT,F.FT)
+
+            Y.FT.ID = Y.FT.ID:';1'
+            CALL F.READ(FN.FT,Y.FT.ID,R.FT,F.FT,FT.ERR)
+            IF R.FT EQ "" THEN
+                Y.FT.ID = FIELD(Y.FT.ID,";",1):';2'
+                CALL F.READ(FN.FT,Y.FT.ID,R.FT,F.FT,FT.ERR)
+            END
+            GOSUB FT.PROCESS
+        END
+
+        O.DATA = Y.PAY.DET
+
+    END ELSE
+
+        IF Y.INIT EQ 'TT' THEN
+            Y.TT.ID.TEMP = FIELD(Y.DATA,"*",1)
+            Y.TT.ID      = FIELD(Y.TT.ID.TEMP,"\",1)
+
+            CALL F.READ(FN.TT,Y.TT.ID,R.TT,F.TT,TT.ERR)
+
+            IF R.TT THEN
+                GOSUB TELLER.PROCESS
+            END ELSE
+                FN.TT = 'FBNK.TELLER$HIS'
+                F.TT  = ''
+                CALL OPF(FN.TT,F.TT)
+
+                Y.TT.ID = Y.TT.ID:';1'
+                CALL F.READ(FN.TT,Y.TT.ID,R.TT,F.TT,TT.ERR)
+                IF R.TT EQ "" THEN
+                    Y.TT.ID = FIELD(Y.TT.ID,";",1):';2'
+                    CALL F.READ(FN.TT,Y.TT.ID,R.TT,F.TT,TT.ERR)
+                END
+                GOSUB TELLER.PROCESS
+            END
+
+            O.DATA = Y.PAY.DET
+        END ELSE
+*----------------------DATA.CAPTURE NARRATIVE-----------------------------------------
+            IF Y.INIT EQ 'DC' THEN
+                GOSUB DC
+            END ELSE
+*-------------------------------------------------------------------------------------
+                Y.TRANSC.CODE = FIELD(Y.DATA,"*",2)
+                IF Y.TRANSC.CODE EQ '69' THEN
+                    Y.PAY.DET = FIELD(Y.DATA,"*",3)
+                END ELSE
+                    CALL DBR('TRANSACTION':FM:AC.TRA.NARRATIVE,Y.TRANSC.CODE,Y.PAY.DET)
+                END
+                O.DATA = Y.PAY.DET
+            END
+        END
+    END
+    RETURN
+*-----------------------------------------------------------------------------
+TELLER.PROCESS:
+    Y.TRANS.CODE  = R.TT<TT.TE.TRANSACTION.CODE>
+
+    IF Y.TRANS.CODE EQ "120" OR Y.TRANS.CODE EQ "121" THEN
+        Y.PAY.CODE = R.TT<TT.TE.LOCAL.REF><1,Y.AT.POS>
+
+        CALL F.READ(FN.PAY,Y.PAY.CODE,R.PAY,F.PAY,PAY.ERR)
+        Y.PAY.DET = R.PAY<BPAY.SERV.CODE.DESCRIPTION>
+
+    END ELSE
+        Y.NARRATIVE.1 = R.TT<TT.TE.NARRATIVE.1>
+        Y.NARRATIVE.2 = R.TT<TT.TE.NARRATIVE.2>
+        Y.THEIR.REF   = R.TT<TT.TE.THEIR.REFERENCE>
+        Y.TE.TRANS    = R.TT<TT.TE.TRANSACTION.CODE>
+
+        IF Y.NARRATIVE.1 NE "" THEN
+            Y.PAY.DET = Y.NARRATIVE.1
+        END ELSE
+            IF Y.NARRATIVE.2 NE "" THEN
+                Y.PAY.DET = Y.NARRATIVE.2
+            END ELSE
+                Y.TRANSC.CODE = FIELD(Y.DATA,"*",2)
+                CALL DBR('TRANSACTION':FM:AC.TRA.NARRATIVE,Y.TRANSC.CODE,Y.PAY.DET)
+            END
+        END
+    END
+    RETURN
+*-----------------------------------------------------------------------------
+FT.PROCESS:
+
+**ATILHM(20151217) GET NARASI FOR CHARGES FROM NARASI IN STMT.ENTRY
+    CALL F.READ(FN.STMT,Y.STMT.ID,R.STMT,F.STMT,STMT.ERR)
+    Y.NARRATIVE.STMT = R.STMT<AC.STE.NARRATIVE>
+
+    IF Y.NARRATIVE.STMT NE '' THEN
+        Y.PAY.DET = Y.NARRATIVE.STMT
+    END ELSE
+        GOSUB FT.DESC
+    END
+
+    RETURN
+*-----------------------------------------------------------------------------
+FT.DESC:
+
+    IF Y.PAY.DET EQ "" THEN
+        Y.PAY.DET   = R.FT<FT.PAYMENT.DETAILS>
+    END
+    Y.FT.TXN.ID = R.FT<FT.TRANSACTION.TYPE>
+
+    IF Y.PAY.DET EQ "" THEN
+        CALL DBR('FT.TXN.TYPE.CONDITION':FM:FT6.SHORT.DESCR,Y.FT.TXN.ID,Y.PAY.DET)
+    END
+    RETURN
+*-----------------------------------------------------------------------------
+DC:
+    Y.DC.ID.TEMP = FIELD(Y.DATA,"*",1)
+    Y.DC.ID      = FIELD(Y.DC.ID.TEMP,"\",1)
+
+    CALL F.READ(FN.DC,Y.DC.ID,R.DC,F.DC,DC.ERR)
+    IF R.DC THEN
+        GOSUB DC.PROCESS
+    END ELSE
+        GOSUB DC.HIS
+    END
+    O.DATA = Y.PAY.DET
+    RETURN
+*-----------------------------------------------------------------------------
+DC.HIS:
+    FN.DC = 'FBNK.DATA.CAPTURE$HIS'
+    F.DC  = ''
+    CALL OPF(FN.DC,F.DC)
+
+    Y.DC.ID = Y.DC.ID:';1'
+    CALL F.READ(FN.DC,Y.DC.ID,R.DC,F.DC,DC.ERR)
+    IF R.DC EQ "" THEN
+        Y.DC.ID = FIELD(Y.DC.ID,";",1):';2'
+        CALL F.READ(FN.DC,Y.DC.ID,R.DC,F.DC,DC.ERR)
+    END
+    GOSUB DC.PROCESS
+    RETURN
+*-----------------------------------------------------------------------------
+DC.PROCESS:
+
+    Y.PAY.DET1 = R.DC<DC.DC.NARRATIVE>
+    BEGIN CASE
+    CASE Y.PAY.DET1 EQ ''
+        Y.TRANSC.CODE = FIELD(Y.DATA,"*",2)
+        IF Y.TRANSC.CODE EQ '69' THEN
+            Y.PAY.DET = FIELD(Y.DATA,"*",3)
+        END ELSE
+            CALL DBR('TRANSACTION':FM:AC.TRA.NARRATIVE,Y.TRANSC.CODE,Y.PAY.DET)
+        END
+        O.DATA = Y.PAY.DET
+    CASE 1
+        Y.PAY.DET = Y.PAY.DET1
+    END CASE
+
+    RETURN
+*-----------------------------------------------------------------------------
+END
+
+
+
+

@@ -1,0 +1,38 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+**SUBROUTINE TO SHOW ACCOUNT RELIGION
+**CREATED ATIAGS(20150624)
+
+    SUBROUTINE IDIE.CONV.RELIGION.ACCT
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+    $INSERT I_F.CUSTOMER
+    $INSERT IMB.BP I_F.IDCH.RELIGION
+
+    FN.CUST = 'F.CUSTOMER'
+    F.CUST = ''
+    CALL OPF(FN.CUST,F.CUST)
+
+    FN.RELI = 'F.IDCH.RELIGION'
+    F.RELI = ''
+    CALL OPF(FN.RELI,F.RELI)
+
+    CALL GET.LOC.REF('CUSTOMER','RELIGION',Y.RELI.POS) 
+ 
+    CALL F.READ(FN.CUST, O.DATA, R.CUST, F.CUST, ERR.CUST)
+    Y.ACC.RELI = R.CUST<EB.CUS.LOCAL.REF, Y.RELI.POS>
+    O.DATA = ''
+
+    CALL F.READ(FN.RELI, Y.ACC.RELI, R.RELI, F.RELI, ERR.RELI)
+    Y.RELI.DESC = R.RELI<IDCH.RELG.DESCRIPTION, 1>
+
+    O.DATA = Y.RELI.DESC
+
+    RETURN
+END
+
+
+

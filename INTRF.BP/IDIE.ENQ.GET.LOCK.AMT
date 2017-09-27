@@ -1,0 +1,75 @@
+*-----------------------------------------------------------------------------
+*-----------------------------------------------------------------------------
+* <Rating>-11</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE IDIE.ENQ.GET.LOCK.AMT
+*-----------------------------------------------------------------------------
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+    $INSERT I_F.ACCOUNT
+    $INSERT ../IMB.BP I_F.IDIH.AC.LOCKED.AMT
+
+    GOSUB INIT
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+INIT:
+*-----------------------------------------------------------------------------
+
+    FN.ACCOUNT = 'F.ACCOUNT'
+    F.ACCOUNT = ''
+    CALL OPF(FN.ACCOUNT,F.ACCOUNT)
+
+    FN.LOCK.AMT = 'F.IDIH.AC.LOCKED.AMT'
+    F.LOCK.AMT = ''
+    CALL OPF(FN.LOCK.AMT,F.LOCK.AMT)
+
+    Y.ID = O.DATA
+    Y.LOCKED.AMT = ''
+
+
+    SEL.ACCT.LOCK = "SELECT ":FN.LOCK.AMT:" WITH ACCOUNT EQ ":Y.ID
+
+    CALL EB.READLIST(SEL.ACCT.LOCK, SEL.LIST, '',NO.OF.REC,ERR.SEL.ACCT)
+
+    LOOP
+        REMOVE Y.ID FROM SEL.LIST SETTING POS
+
+    WHILE Y.ID:POS
+        CALL F.READ(FN.LOCK.AMT, Y.ID, R.AC.LOCKED, F.LOCK.AMT, ERR.LOCK.AMT)
+        Y.TODATE = R.AC.LOCKED<ACLOCK.TO.DATE>
+
+        IF Y.TODATE GE TODAY OR Y.TODATE EQ '' THEN
+            Y.LOCKED.AMT += R.AC.LOCKED<ACLOCK.AMOUNT>
+        END
+    REPEAT
+
+    O.DATA = Y.LOCKED.AMT
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+END
+*-----------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

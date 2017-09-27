@@ -1,0 +1,30 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+**SUBROUTINE TO CONVERT DISTRICT CODE IN IDCH.DISTRICT(O.DATA)
+**CREATED ATILHM(20150423)
+
+    SUBROUTINE IDIE.CONV.ENQ.TOWNCIF
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT ../IMB.BP I_F.IDCH.DISTRICT
+    $INSERT I_ENQUIRY.COMMON
+
+    FN.DISCT = 'F.IDCH.DISTRICT'
+    F.DISCT = ''
+    CALL OPF(FN.DISCT,F.DISCT)
+
+
+    Y.ID.DISCT = O.DATA
+
+    CALL F.READ(FN.DISCT,Y.ID.DISCT,R.DISCT,F.DISCT,ERR)
+    Y.DESCRIPTION = R.DISCT<IDCH.DISTRICT.DESCRIPTION,1>
+
+    O.DATA = Y.DESCRIPTION
+
+    RETURN
+END
+
+
+

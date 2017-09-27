@@ -1,0 +1,21 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE IDI.INTF.CONV.DEBET.AMT(Y.RET.VALUE)
+**ROUTINE TO CONVERT DEBET AMOUNT
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.IDIH.WS.DATA.FT.MAP
+    $INSERT I_IDI.WS.INC.PRE.PROCESS.COMMON
+*DEBUG
+    FINDSTR 'DEBIT.AMOUNT' IN Y.MSG.SHARE SETTING AP,VP,SP THEN
+        Y.DEBIT.AMT = Y.MSG.SHARE<AP,2>
+    END
+
+    Y.RET.VALUE = FIELDS(Y.DEBIT.AMT,'.',1)
+    RETURN
+END
+
+
+

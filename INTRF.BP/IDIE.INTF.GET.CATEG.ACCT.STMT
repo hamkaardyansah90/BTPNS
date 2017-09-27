@@ -1,0 +1,29 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE IDIE.INTF.GET.CATEG.ACCT.STMT
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+    $INSERT I_F.ACCOUNT
+
+
+    FN.ACC = 'F.ACCOUNT'
+    F.ACC = ''
+    CALL OPF(FN.ACC, F.ACC)
+
+    Y.ID.ACC = FIELDS(O.DATA,"*",1)
+
+    IF (LEFT(Y.ID.ACC,3)) EQ 'IDR' OR (LEFT(Y.ID.ACC,2)) EQ 'PL' THEN
+        O.DATA = '00'
+    END ELSE
+        CALL F.READ(FN.ACC,Y.ID.ACC,R.ACC,F.ACC,ERR)
+        O.DATA = R.ACC<AC.CATEGORY>
+    END
+
+    RETURN
+
+END
+
+

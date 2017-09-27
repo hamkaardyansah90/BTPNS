@@ -1,0 +1,352 @@
+*-----------------------------------------------------------------------------
+* <Rating>-75</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE IDIB.UPD.DATA.WS.FT(Y.WS.FT.ID)
+**ROUTINE TO MAINTANCE RECORD IDIH.WS.DATA.FT.MAP WITH IN.STATUS.REC EQUAL PROCESSING
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_TSA.COMMON
+    $INSERT I_F.IDIH.WS.DATA.FT.MAP
+    $INSERT I_F.IDIH.IN.FT.JOURNAL.PAR
+    $INSERT I_F.IDIH.NETWORK.ACCT
+    $INSERT I_F.IDIH.CHANNEL.ID
+    $INSERT I_F.IDIH.INSTITUTION.CODE.PAR
+    $INSERT I_IDIB.UPD.DATA.WS.FT.COMMON
+    $INSERT I_F.ACCOUNT
+    $INSERT I_F.IDIH.TERMINAL.CASH.ATM
+
+    GOSUB INIT
+
+    IF Y.IN.STAT.REC NE 'ENQUIRY' THEN
+        GOSUB PROCESS
+        GOSUB WRITE.DATA
+    END
+
+    RETURN
+*----------------------------------------------------------------------------------------
+INIT:
+*---------------------
+**FILL THE BLANK VARIABLE
+
+    Y.DEBIT.ACCT.WS = ''
+    Y.CREDIT.ACCT.WS = ''
+    Y.IN.UNIQUE.ID = ''
+    Y.TERMINAL.ID = ''
+    Y.IN.CHANNEL.ID = ''
+    Y.IN.NETWORK.ID = ''
+    Y.IN.STAT.REC = ''
+    Y.TX.DEBIT.CO.CODE = ''
+    Y.TX.CREDIT.CO.CODE = ''
+    Y.DEBIT.ACCT.TYPE = ''
+    Y.CREDIT.ACCT.TYPE = ''
+    Y.DEBIT.ACCT.CONST = ''
+    Y.CREDIT.ACCT.CONST = ''
+    Y.DEBIT.ACCT.CURR = ''
+    Y.ACCT.DB = ''
+    Y.ACCT.CR = ''
+
+    CALL F.READ(FN.WS.FT, Y.WS.FT.ID, R.WS.FT, F.WS.FT, ERR)
+    Y.DEBIT.ACCT.WS = R.WS.FT<WS.DATA.FT.DEBIT.ACCT.NO>
+    Y.CREDIT.ACCT.WS = R.WS.FT<WS.DATA.FT.CREDIT.ACCT.NO>
+    Y.IN.UNIQUE.ID = R.WS.FT<WS.DATA.FT.IN.UNIQUE.ID>
+    Y.TERMINAL.ID = R.WS.FT<WS.DATA.FT.IN.TERMINAL.ID>
+    Y.IN.CHANNEL.ID = R.WS.FT<WS.DATA.FT.IN.CHANNEL.ID>
+    Y.IN.NETWORK.ID = R.WS.FT<WS.DATA.FT.IN.NETWORK.ID>
+    Y.IN.STAT.REC = R.WS.FT<WS.DATA.FT.IN.STATUS.REC>
+    Y.TX.DEBIT.CO.CODE = R.WS.FT<WS.DATA.FT.CO.CODE>
+    Y.TX.CREDIT.CO.CODE = R.WS.FT<WS.DATA.FT.CO.CODE>
+    Y.TX.DEBIT.CURR = R.WS.FT<WS.DATA.FT.DEBIT.CURRENCY>
+    Y.TX.CREDIT.CURR = R.WS.FT<WS.DATA.FT.CREDIT.CURRENCY>
+    Y.IN.INST.ID = R.WS.FT<WS.DATA.FT.IN.INSTITUTION.ID>
+    Y.DB.AMT.WS = R.WS.FT<WS.DATA.FT.DEBIT.AMOUNT>
+    Y.CR.AMT.WS = R.WS.FT<WS.DATA.FT.CREDIT.AMOUNT>
+
+    CALL F.READ(FN.JRN.PAR, Y.IN.UNIQUE.ID, R.JRN.PAR, F.JRN.PAR, ERR)
+    Y.DEBIT.ACCT.TYPE = R.JRN.PAR<JOURNAL.PAR.DB.ACCT.TYPE>
+    Y.CREDIT.ACCT.TYPE = R.JRN.PAR<JOURNAL.PAR.CR.ACCT.TYPE>
+    Y.DEBIT.ACCT.CONST  = R.JRN.PAR<JOURNAL.PAR.DB.ACCT.CONST>
+    Y.CREDIT.ACCT.CONST  = R.JRN.PAR<JOURNAL.PAR.CR.ACCT.CONST>
+    Y.DEBIT.ACCT.CURR  = R.JRN.PAR<JOURNAL.PAR.DB.ACCT.CCY>
+    Y.DEBIT.ACCT.CURR.CONST  = R.JRN.PAR<JOURNAL.PAR.DB.ACCT.CCY.CONST>
+    Y.DEBIT.ACCT.BRANCH.CONST  = R.JRN.PAR<JOURNAL.PAR.DB.ACCT.BR.CONST>
+    Y.DEBIT.ACCT.CATEGORY = R.JRN.PAR<JOURNAL.PAR.DB.ACCT.CATEG>
+    Y.CREDIT.ACCT.CURR  = R.JRN.PAR<JOURNAL.PAR.CR.ACCT.CCY>
+    Y.CREDIT.ACCT.CURR.CONST  = R.JRN.PAR<JOURNAL.PAR.CR.ACCT.CCY.CONST>
+    Y.CREDIT.ACCT.BRANCH  = R.JRN.PAR<JOURNAL.PAR.CR.ACCT.BR>
+    Y.CREDIT.ACCT.BRANCH.CONST  = R.JRN.PAR<JOURNAL.PAR.CR.ACCT.BR.CONST>
+    Y.CREDIT.ACCT.CATEGORY = R.JRN.PAR<JOURNAL.PAR.CR.ACCT.CATEG>
+    Y.DEBIT.ACCT.BRANCH  = R.JRN.PAR<JOURNAL.PAR.DB.ACCT.BR>
+    Y.DEFAULT.AMT = R.JRN.PAR<JOURNAL.PAR.DEFAULT.AMT>
+
+    Y.ID.ACCT = Y.DEBIT.ACCT.WS
+    IF Y.ID.ACCT NE '' THEN
+        GOSUB GET.ACCOUNT
+        Y.DEBIT.COMP.CO = Y.ACCT.CO.CODE
+        Y.DEBIT.AC.CURR = Y.ACC.CURR
+        Y.ID.ACCT = ''
+    END
+
+    Y.ID.ACCT = Y.CREDIT.ACCT.WS
+    IF Y.ID.ACCT NE '' THEN
+        GOSUB GET.ACCOUNT
+        Y.CREDIT.COMP.CO = Y.ACCT.CO.CODE
+        Y.CREDIT.AC.CURR = Y.ACC.CURR
+        Y.ID.ACCT = ''
+    END
+
+    Y.OUT.CURR = Y.ACC.CURR
+
+    RETURN
+*----------------------------------------------------------------------------------------
+PROCESS:
+*----------------------------------------------------------------------------------------
+
+**CASE
+    IF Y.DEBIT.ACCT.WS EQ '' THEN
+        BEGIN CASE
+*CASE NETWORK
+        CASE Y.DEBIT.ACCT.TYPE EQ 'NET'
+            Y.IN.DB.NETWORK = 'DEBIT'
+            GOSUB NETWORK
+            Y.ACCT.DB = Y.OUT.DB.NETWORK
+
+*CASE CHANNEL
+        CASE Y.DEBIT.ACCT.TYPE EQ 'CHN'
+            GOSUB CHANNEL
+            Y.ACCT.DB = Y.ACCT.CHN.DB
+
+*CASE CONSTANT
+        CASE Y.DEBIT.ACCT.TYPE EQ 'CON'
+            Y.ACCT.DB = Y.DEBIT.ACCT.CONST
+
+*CASE IA
+        CASE Y.DEBIT.ACCT.TYPE EQ 'IA'
+*CURRENCY
+            BEGIN CASE
+            CASE Y.DEBIT.ACCT.CURR EQ 'CR'
+                Y.ACCT.CURR = Y.CREDIT.AC.CURR
+            CASE Y.DEBIT.ACCT.CURR EQ 'TRX'
+                Y.ACCT.CURR = Y.TX.DEBIT.CURR
+            CASE Y.DEBIT.ACCT.CURR EQ 'CON'
+                Y.ACCT.CURR = Y.DEBIT.ACCT.CURR.CONST
+            END CASE
+*BRANCH
+            BEGIN CASE
+            CASE Y.DEBIT.ACCT.BRANCH EQ 'CR'
+                Y.CO.CODE = Y.CREDIT.COMP.CO
+            CASE Y.DEBIT.ACCT.BRANCH EQ 'TRX'
+                Y.CO.CODE = Y.TX.DEBIT.CO.CODE
+            CASE Y.DEBIT.ACCT.BRANCH EQ 'HO'
+                Y.CO.CODE = "ID0010001"
+            CASE (Y.DEBIT.ACCT.BRANCH EQ 'CON')
+                Y.CO.CODE = Y.DEBIT.ACCT.BRANCH.CONST
+            END CASE
+            Y.DB.BR = Y.CO.CODE[6,4]
+
+
+*CURRENCY + CATEGORY + BRANCH
+
+            Y.ACCT.DB = Y.ACCT.CURR:Y.DEBIT.ACCT.CATEGORY:Y.DB.BR
+        END CASE
+    END
+
+    IF Y.CREDIT.ACCT.WS EQ '' THEN
+        BEGIN CASE
+*CASE NETWORK
+        CASE Y.CREDIT.ACCT.TYPE EQ 'NET'
+            Y.IN.CR.NETWORK = 'CREDIT'
+            GOSUB NETWORK
+
+            Y.ACCT.CR = Y.OUT.CR.NETWORK
+
+*CASE CHANNEL
+        CASE Y.CREDIT.ACCT.TYPE EQ 'CHN'
+            GOSUB CHANNEL
+            Y.ACCT.CR = Y.ACCT.CHN.CR
+
+*CASE PAYMENT
+        CASE Y.CREDIT.ACCT.TYPE EQ 'PYM'
+            CALL F.READ(FN.INST.CODE, Y.IN.INST.ID, R.INST.CODE, F.INST.CODE, INST.CODE.ERR)
+            IF R.INST.CODE NE '' THEN
+                Y.ACCT.CR = R.INST.CODE<INST.CODE.INSTITUTION.ACCT>
+            END
+
+*CASE CONSTANT
+        CASE Y.CREDIT.ACCT.TYPE EQ 'CON'
+            Y.ACCT.CR = Y.CREDIT.ACCT.CONST
+
+*CASE IA
+        CASE Y.CREDIT.ACCT.TYPE EQ 'IA'
+*CURRENCY
+            BEGIN CASE
+            CASE (Y.CREDIT.ACCT.CURR EQ 'DB')
+                Y.ACCT.CURR = Y.DEBIT.AC.CURR
+            CASE (Y.CREDIT.ACCT.CURR EQ 'TRX')
+                Y.ACCT.CURR = Y.TX.CREDIT.CURR
+            CASE (Y.CREDIT.ACCT.CURR EQ 'CON')
+                Y.ACCT.CURR = Y.CREDIT.ACCT.CURR.CONST
+            END CASE
+*BRANCH
+            BEGIN CASE
+            CASE (Y.CREDIT.ACCT.BRANCH EQ 'DB')
+                Y.CO.CODE = Y.DEBIT.COMP.CO
+            CASE (Y.CREDIT.ACCT.BRANCH EQ 'TRX')
+                Y.CO.CODE = Y.TX.CREDIT.CO.CODE
+            CASE (Y.CREDIT.ACCT.BRANCH EQ 'HO')
+                Y.CO.CODE = "ID0010001"
+            CASE (Y.CREDIT.ACCT.BRANCH EQ 'CON')
+                Y.CO.CODE = Y.CREDIT.ACCT.BRANCH.CONST
+            END CASE
+            Y.CR.BR = Y.CO.CODE[6,4]
+*
+
+*CURRENCY + CATEGORY + BRANCH
+            Y.ACCT.CR = Y.ACCT.CURR:Y.CREDIT.ACCT.CATEGORY:Y.CR.BR
+        END CASE
+    END
+
+    RETURN
+*-----------------------------------------------------------------------------
+WRITE.DATA:
+*-----------------------------------------------------------------------------
+
+    IF Y.DEBIT.ACCT.WS EQ '' THEN
+        R.WS.FT<WS.DATA.FT.DEBIT.ACCT.NO> = Y.ACCT.DB
+    END
+
+    IF Y.CREDIT.ACCT.WS  EQ '' THEN
+        R.WS.FT<WS.DATA.FT.CREDIT.ACCT.NO> = Y.ACCT.CR
+    END
+
+    IF Y.TX.DEBIT.CURR EQ '' OR Y.TX.CREDIT.CURR EQ '' THEN
+        R.WS.FT<WS.DATA.FT.DEBIT.CURRENCY> = Y.OUT.CURR
+        R.WS.FT<WS.DATA.FT.CREDIT.CURRENCY> =  Y.OUT.CURR
+    END
+
+    IF Y.DEFAULT.AMT NE '' AND (Y.DB.AMT.WS EQ '' OR Y.CR.AMT.WS EQ '') THEN
+        R.WS.FT<WS.DATA.FT.DEBIT.AMOUNT> = Y.DEFAULT.AMT
+        R.WS.FT<WS.DATA.FT.CREDIT.AMOUNT> = Y.DEFAULT.AMT
+    END
+
+    CALL F.WRITE(FN.WS.FT,Y.WS.FT.ID,R.WS.FT)
+*WRITE R.WS.FT TO F.WS.FT,Y.WS.FT.ID
+
+
+    RETURN
+*-----------------------------------------------------------------------------
+NETWORK:
+*-----------------------------------------------------------------------------
+
+    CALL F.READ(FN.NET, Y.IN.NETWORK.ID, R.NET, F.NET, NET.ERR)
+    IF R.NET THEN
+        IF Y.IN.CR.NETWORK NE '' THEN
+            Y.PAY.TYPE = R.NET<NET.ACCT.PAY.BRANCH.TYPE>
+            Y.PAY.ACCT = R.NET<NET.ACCT.PAY.ACCT>
+            BEGIN CASE
+            CASE (Y.PAY.TYPE EQ 'HO')
+                Y.PAY.CO.CODE = 'ID0010001'
+            CASE (Y.PAY.TYPE EQ 'DB')
+                Y.PAY.CO.CODE = Y.DEBIT.COMP.CO
+            CASE (Y.PAY.TYPE EQ 'CR')
+                Y.PAY.CO.CODE = Y.CREDIT.COMP.CO
+            CASE (Y.PAY.TYPE EQ 'TX')
+                Y.PAY.CO.CODE = Y.TX.DEBIT.CO.CODE
+            CASE (Y.PAY.TYPE EQ 'CON')
+                Y.PAY.CO.CODE = R.NET<NET.ACCT.PAY.BRANCH.CON>
+            END CASE
+        END
+        Y.CR.BRANCH = Y.PAY.CO.CODE[6,4]
+        Y.OUT.CR.NETWORK = Y.PAY.ACCT:Y.CR.BRANCH
+        Y.IN.CR.NETWORK = ''
+
+        IF Y.IN.DB.NETWORK NE '' THEN
+            Y.RCV.TYPE = R.NET<NET.ACCT.RCV.BRANCH.TYPE>
+            Y.RCV.ACCT = R.NET<NET.ACCT.RECEIVE.ACCT>
+            BEGIN CASE
+            CASE (Y.RCV.TYPE EQ 'HO')
+                Y.RCV.CO.CODE = 'ID0010001'
+            CASE (Y.RCV.TYPE EQ 'DB')
+                Y.RCV.CO.CODE = Y.DEBIT.COMP.CO
+            CASE (Y.RCV.TYPE EQ 'CR')
+                Y.RCV.CO.CODE = Y.CREDIT.COMP.CO
+            CASE (Y.RCV.TYPE EQ 'TX')
+                Y.RCV.CO.CODE = Y.TX.CREDIT.CO.CODE
+            CASE (Y.RCV.TYPE EQ 'CON')
+                Y.RCV.CO.CODE = R.NET<NET.ACCT.RCV.BRANCH.CON>
+            END CASE
+        END
+        Y.DB.BRANCH = Y.RCV.CO.CODE[6,4]
+        Y.OUT.DB.NETWORK = Y.RCV.ACCT:Y.DB.BRANCH
+        Y.IN.DB.NETWORK = ''
+    END
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+CHANNEL:
+*-----------------------------------------------------------------------------
+
+    CALL F.READ(FN.CHN, Y.IN.CHANNEL.ID, R.CHN, F.CHN, CHN.ERR)
+*IF R.CHN THEN
+    Y.ACCT.CHN.CR = R.CHN<CHNL.ID.ACCOUNT.LOOKUP>
+    Y.FLG.CHANNEL = R.CHN<CHNL.ID.FLAG.CHANNEL>
+    Y.ACCT.CHN.DB = Y.ACCT.CHN.CR
+
+    IF Y.FLG.CHANNEL EQ 'ATM' THEN
+        GOSUB GET.TERMINAL.ID
+        Y.ACCT.CHN.CR = Y.ACCT.2
+    END
+
+    RETURN
+
+*-----------------------------------------------------------------------------------------
+GET.ACCOUNT:
+*-----------------------------------------------------------------------------------------
+    CALL F.READ(FN.ACCT, Y.ID.ACCT, R.ACCT, F.ACCT, ERR)
+    Y.ACCT.CO.CODE = R.ACCT<AC.CO.CODE>
+    Y.ACC.CURR = R.ACCT<AC.CURRENCY>
+
+
+    RETURN
+*-----------------------------------------------------------------------------------------
+GET.TERMINAL.ID:
+*-----------------------------------------------------------------------------------------
+
+    Y.ID = LEN(Y.TERMINAL.ID)
+    Y.SISA = Y.ID - 2
+    Y.ATM.ID = Y.TERMINAL.ID[1,Y.SISA]
+    Y.SEQ.ATM = RIGHT(Y.TERMINAL.ID,2)
+
+    CALL F.READ(FN.CASH.ATM, Y.ATM.ID, R.CASH.ATM, F.CASH.ATM, CASH.ATM.ERR)
+    IF R.CASH.ATM THEN
+        FIND Y.SEQ.ATM IN R.CASH.ATM<CASH.ATM.SEQUENCE.COMP> SETTING POSCH,POSCHV THEN
+            Y.ACCT.2 = R.CASH.ATM<CASH.ATM.ACCT.COMP,POSCHV>
+        END
+    END
+
+    RETURN
+*-----------------------------------------------------------------------------------------
+END
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,109 @@
+*-----------------------------------------------------------------------------
+* <Rating>-17</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE IDI.CALL.OFS
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_IDI.CALL.OFS.COMMON
+*DEBUG
+    GOSUB PROCESS
+
+    RETURN
+*-----------------
+PROCESS:
+*-----------------
+    CRT 'Y.ID = ':Y.REC.IDX
+    CRT 'Y.FLAG = ':Y.FLAG
+    CRT "================================="
+    CRT OFS.MSG
+
+    Y.INT.TYPE = 'ORC'
+    Y.LOG.LEVEL = 'INFO'
+    Y.MSG = OFS.MSG
+    CALL IDI.WRITE.LOG.INT(Y.INT.TYPE,Y.LOG.LEVEL,Y.MSG)
+*DEBUG
+    CALL OFS.GLOBUS.MANAGER(OFS.SRC.ID,OFS.MSG)
+
+    CRT "================================="
+    CRT OFS.MSG
+    CRT "================================="
+
+    Y.MSG = OFS.MSG
+**ADD ENCRYTED PASSWORD
+
+    Y.OFS.APP.NEW = FIELD(Y.MSG,"/",1,1)
+    Y.OFS.FUNC.NEW = FIELD(Y.MSG,"/",2,1)
+    Y.PROCESS = FIELD(Y.MSG,",",1)
+    Y.USER = FIELD(Y.MSG,"/",3,1)
+    Y.PASS = FIELD(Y.MSG,"/",4,1)
+    Y.COMP = FIELD(Y.MSG,",",3,1)
+    Y.MSG = FIELD(Y.MSG,",",4,9999999999)
+    Y.PASS.NEW = "XXXXXXX"
+
+    Y.MSG = Y.OFS.APP.NEW:Y.OFS.FUNC.NEW:Y.PROCESS:Y.USER:Y.PASS.NEW:Y.COMP:",":Y.MSG
+    CALL IDI.WRITE.LOG.INT(Y.INT.TYPE,Y.LOG.LEVEL,Y.MSG)
+
+    SENSITIVITY = ''
+*DEBUG
+**ADD TO GET ID RESPONSE
+    Y.ID.RESP.REC = FIELD(OFS.MSG,'/',1,1)
+    Y.FLAG.1 = FIELD(OFS.MSG, '/', 3)
+    Y.FLAG = FIELD(Y.FLAG.1, ',', 1)
+    Y.FLAG.MSG = FIELD(OFS.MSG, '/', 4)
+
+    Y.ERR.MSG = ''
+    Y.REC.ID = FIELD(OFS.MSG, '/', 1)
+
+    BEGIN CASE
+    CASE Y.FLAG NE '1'
+        Y.ERR.MSG = Y.FLAG.MSG
+        IF NOT(Y.ERR.MSG) THEN
+            Y.ERR.MSG = OFS.MSG
+        END
+        IF Y.OVERWRITE EQ 'SKIP' THEN
+            Y.REC.ID = FIELD(OFS.MSG, '/', 1)
+            Y.REC.IDX :=Y.REC.ID:@VM
+        END
+
+*        IF Y.MLT.OFS THEN
+*            IF MLT = Y.CNT.MLT THEN
+*                Y.REC.IDX :=Y.REC.ID:@VM
+*            END
+*            ELSE
+*                Y.REC.IDX :=Y.REC.ID:@SM
+*            END
+*        END
+*        ELSE
+*            Y.REC.IDX :=Y.REC.ID:@VM
+*        END
+*DEBUG
+    CASE Y.FLAG EQ '1' AND Y.PROCESS EQ 'INPUT'
+        IF Y.MLT.OFS THEN
+            IF MLT = Y.CNT.MLT THEN
+                Y.REC.IDX :=Y.REC.ID:@VM
+            END
+            ELSE
+                Y.REC.IDX :=Y.REC.ID:@SM
+            END
+        END
+        ELSE
+            Y.REC.IDX :=Y.REC.ID:@VM
+        END
+    END  CASE
+
+    RETURN
+
+END
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,21 @@
+*-----------------------------------------------------------------------------
+* <Rating>-10</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE IDIB.UPD.DATA.WS.FT.SELECT
+**ROUTINE TO UPDATE DATA RECORD IDIH.WS.DATA.FT.MAP WITH IN.STATUS.REC 'PROCESSING'
+**SELECT ROUTINE IDIB.UPD.DATA.WS.FT
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.IDIH.WS.DATA.FT.MAP
+    $INSERT I_TSA.COMMON
+    $INSERT I_IDIB.UPD.DATA.WS.FT.COMMON
+
+    SEL.CMD = "SELECT ":FN.WS.FT:" WITH IN.STATUS.REC NE 'ENQUIRY' AND (DEBIT.ACCT.NO EQ '' OR CREDIT.ACCT.NO EQ '')":
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'', NO.OF.REC, LIST.ERR)
+
+    CALL BATCH.BUILD.LIST('',SEL.LIST)
+
+    RETURN
+END
+

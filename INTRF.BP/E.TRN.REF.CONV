@@ -1,0 +1,39 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE E.TRN.REF.CONV
+**************************************************************************
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+    $INSERT I_F.STANDARD.SELECTION
+*************************************************************************
+*   Modification log
+*   ----------------
+*
+* 13/10/04 - CI_10023926
+*            New subroutine to strip off 'PS' from the TRANS.REF field
+*            for passing it to PAYMENT.STOP
+*
+* 23/07/07 - BG_100014697
+*            Drill down of STMT.ENT.BOOK gives entry instead of transaction.
+*************************************************************************
+*DEBUG
+    IN.O.DATA = O.DATA
+    OUT.O.DATA = O.DATA
+
+    IF FIELD(IN.O.DATA,'.',1) = 'PS' THEN
+        OUT.O.DATA = FIELD(IN.O.DATA,'.',2)
+    END
+
+    IF FIELD(IN.O.DATA,'-',1) = 'AZ' THEN
+        OUT.O.DATA = FIELD(IN.O.DATA,'-',2)
+    END
+
+    O.DATA = OUT.O.DATA
+
+    RETURN
+END
+
+
+

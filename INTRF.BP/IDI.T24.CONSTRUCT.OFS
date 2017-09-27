@@ -1,0 +1,437 @@
+*-----------------------------------------------------------------------------
+* <Rating>1708</Rating>
+*-----------------------------------------------------------------------------
+*create by galuh;
+*Jan 2015
+**MODIFIED:
+**1.ATILHM(20150217) MODIFIED FOR ENQUIRY APPS
+**2.ATILHM MODIFIED FOR GET FUNCTION, GET ID RECORD, GET ID TEMP APP FOR FIELD
+**3.MODIFIED FOR CONSTRUCT OFS ENQUIRY RESPONSE
+
+*-----------------------------------------------------------------------------
+    SUBROUTINE IDI.T24.CONSTRUCT.OFS(Y.ID.MAPPING,Y.MSG)
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.IDIH.T24.INTG.MAP
+    $INSERT I_IDI.T24.CONSTRUCT.OFS.COMMON
+    $INSERT I_F.IDIH.WS.DATA.FT.MAP
+    $INSERT I_IDI.WS.INC.PRE.PROCESS.COMMON
+    $INSERT I_IDI.CALL.OFS.COMMON
+*DEBUG
+
+    Y.ID.REC  = ''
+    Y.OFS.PWD  = ''
+    Y.PASS   = ''
+    Y.USER  = ''
+    Y.COMP   = ''
+
+    GOSUB INIT
+    GOSUB MAIN
+
+    RETURN
+*-----------------------------------------------------------------------------
+INIT:
+*DEBUG
+    FN.INTG.MAP = 'F.IDIH.T24.INTG.MAP'
+    F.INTG.MAP = ''
+    CALL OPF(FN.INTG.MAP,F.INTG.MAP)
+
+
+    Y.ID.REC  = FIELD(Y.MSG,",",1)
+    Y.OFS.PWD  = FIELD(Y.MSG,",",3,1)
+    Y.PASS   = FIELD(Y.OFS.PWD,"/",2)
+    Y.USER  = FIELD(Y.OFS.PWD,"/",1)
+    Y.COMP   = FIELD(Y.OFS.PWD,"/",3)
+**FIND INDICATOR RESPONSE
+*DEBUG
+    Y.TEMP   = FIELD(Y.MSG,',',1,1)
+    Y.TEMP.2 = FIELD(Y.TEMP,'/',2,2)
+    Y.INDICATOR = FIELD(Y.TEMP.2,'/',2)
+*DEBUG
+    Y.OFS.TEMP = FIELD(Y.MSG,",",2,1)
+    Y.OFS.FUNCT = FIELD(Y.OFS.TEMP,"/",2,1)
+    Y.OFS.PROCESS = FIELD(Y.OFS.TEMP,"/",3,1)
+    Y.ID.REQ = FIELDS(Y.MSG,",",4,1)
+    Y.ID.REC = FIELDS(Y.ID.REQ,"/",1,1)
+
+*Y.ENQ = FIELD(Y.MSG,",",4)
+    Y.OFS.APP = FIELD(Y.MSG,",",1,1)
+
+    RETURN
+*-----------------------------------------------------------------------------
+MAIN:
+*DEBUG
+    Y.MSG.GET = Y.MSG
+
+    CALL F.READ(FN.INTG.MAP,Y.ID.MAPPING,R.INTG.MAP,F.INTG.MAP,ERR)
+
+    IF NOT(ERR) THEN
+
+        GOSUB CONSTRUCT.OFS
+    END
+    ELSE
+        GOSUB CALL.ERROR
+    END
+
+    RETURN
+*-----------------------------------------------------------------------------
+CONSTRUCT.OFS:
+*DEBUG
+
+    Y.FIELD.APP = R.INTG.MAP<T24.INTG.MAP.FIELD.APPLICATION>
+    Y.COUNT = DCOUNT(Y.FIELD.APP,VM)
+
+
+    IF Y.OFS.APP NE 'ENQUIRY.SELECT' AND Y.OFS.APP NE '' THEN
+**CONSTRUCT APPLICATION FIELD
+        FOR I=1 TO Y.COUNT
+            Y.VALUE = ""
+            Y.VALUE.MULT = ""
+            Y.OFS.MSG.ADD = ""
+
+
+            Y.METHOD.TYPE.I = R.INTG.MAP<T24.INTG.MAP.METHOD.TYPE, I>
+            BEGIN CASE
+            CASE Y.METHOD.TYPE.I = 'INT'
+                Y.MSG.CONV = FIELD(Y.MSG,",",5,9999999999)
+                Y.MSG.CONV = CHANGE(Y.MSG.CONV,',',FM)
+                Y.MSG.CONV = CHANGE(Y.MSG.CONV,'=',VM)
+
+                Y.FIELD.SOURCE.I = R.INTG.MAP<T24.INTG.MAP.FIELD.SOURCE, I>
+*DEBUG
+**2.ATILHM MODIFIED FOR GET FUNCTION, GET ID RECORD, GET ID TEMP APP FOR FIELD
+                IF Y.FIELD.SOURCE.I NE '@ID' THEN
+
+                    Y.COUNT.FIELD = COUNT(Y.MSG.CONV,Y.FIELD.SOURCE.I)
+
+**MODIFIED ATILHM(20150218) CHANGE MESSAGE FORMAT OFS
+                    FOR A=1 TO Y.COUNT.FIELD
+
+                        FINDSTR Y.FIELD.SOURCE.I:':':A:':1' IN Y.MSG.CONV SETTING AP,VP,SP THEN
+                            Y.VALUE<A> = Y.MSG.CONV<AP,2>
+                        END
+                    NEXT A
+
+                END ELSE
+*DEBUG
+                    Y.VALUE = Y.ID.OFS
+                END
+                CONVERT FM TO ',' IN Y.MSG.CONV
+                CONVERT VM TO '=' IN Y.MSG.CONV
+
+
+            CASE Y.METHOD.TYPE.I = 'CON'
+                Y.VALUE = R.INTG.MAP<T24.INTG.MAP.FIELD.CONSTANT, I>
+            CASE Y.METHOD.TYPE.I = 'RTN'
+                Y.RTN = R.INTG.MAP<T24.INTG.MAP.FIELD.RTN, I>
+* GET ROUTINE BY POSISITON OF MULTI VALUE  BY WSG
+*Y.RTN = FIELD(Y.RTN,SM,I)
+*Y.RTN = TRIM(Y.RTN, "@","L")
+
+                CALL @Y.RTN(Y.VALUE)
+            END CASE
+
+            CONVERT FM TO '' IN Y.VALUE
+
+            IF Y.VALUE <> '' THEN
+                Y.MAX.LENGTH = R.INTG.MAP<T24.INTG.MAP.MAX.LENGTH, I>
+                Y.COUNT.VALUE = 1
+
+                IF Y.MAX.LENGTH <> '' THEN
+                    GOSUB CHECK.LENGTH
+                    Y.COUNT.VALUE = DCOUNT(Y.VALUE.MULT,VM)
+                END
+                ELSE
+                    Y.VALUE.MULT = Y.VALUE
+                END
+
+
+                FOR J=1 TO Y.COUNT.VALUE
+                    Y.VALUE = Y.VALUE.MULT
+                    Y.OFS.MSG.ADD<J> = (R.INTG.MAP<T24.INTG.MAP.FIELD.APPLICATION, I>):':':J:':1=':Y.VALUE<1,J>
+                NEXT J
+
+                Y.OFS.MSG<-1> = Y.OFS.MSG.ADD
+            END
+
+        NEXT I
+*DEBUG
+        CONVERT FM TO ',' IN Y.OFS.MSG
+**CONSTRUCT VERSION
+        Y.VERSION.USED = R.INTG.MAP<T24.INTG.MAP.VERSION.USED>
+
+        IF Y.VERSION.USED[1,1] EQ '@' THEN
+            Y.RET.VALUE = Y.OFS.MSG
+            Y.RTN = FIELD(Y.VERSION.USED,"@",2)
+            CALL @Y.RTN(Y.RET.VALUE)
+        END
+        ELSE
+            Y.RET.VALUE = Y.VERSION.USED
+        END
+
+**2.ATILHM MODIFIED FOR GET FUNCTION, GET ID RECORD, GET ID TEMP APP FOR FIELD
+*DEBUG
+        Y.ID.APP = R.INTG.MAP<T24.INTG.MAP.ID.RECORD>
+        IF Y.ID.APP[1,1] EQ '@' THEN
+            Y.ID.REC.APP = Y.OFS.MSG
+            Y.RTN.ID = FIELD(Y.ID.APP,"@",2)
+            CALL @Y.RTN.ID(Y.ID.REC.APP)
+*DEBUG
+*Y.ID.REC.APP = Y.RET.VALUE
+        END
+        ELSE
+            Y.ID.REC.APP = Y.ID.APP
+        END
+*DEBUG
+        IF Y.INDICATOR NE '1' THEN
+            Y.MSG.HEADER = Y.RET.VALUE:'/':Y.OFS.FUNCT:'/':Y.OFS.PROCESS:'/':'/':',':Y.USER:'/':Y.PASS:'/':Y.COMP:',':Y.ID.REC.APP:'/':','
+        END
+        ELSE
+            Y.MSG.HEADER = ''
+        END
+    END
+    ELSE IF Y.OFS.APP EQ 'ENQUIRY.SELECT' AND Y.OFS.APP NE '' THEN
+*CASE Y.OFS.APP.REQ EQ 'ENQUIRY.SELECT' AND Y.OFS.APP.REQ <> ''
+*DEBUG
+        FOR I=1 TO Y.COUNT
+            Y.VALUE = ""
+            Y.VALUE.MULT = ""
+            Y.OFS.MSG.ADD = ""
+            Y.METHOD.TYPE.I = R.INTG.MAP<T24.INTG.MAP.METHOD.TYPE, I>
+            BEGIN CASE
+            CASE Y.METHOD.TYPE.I = 'INT'
+                Y.MSG.CONV = FIELD(Y.MSG,",",5,9999999999)
+                Y.MSG.CONV = CHANGE(Y.MSG.CONV,',',FM)
+                Y.MSG.CONV = CHANGE(Y.MSG.CONV,'=',VM)
+
+                Y.FIELD.SOURCE.I = R.INTG.MAP<T24.INTG.MAP.FIELD.SOURCE, I>
+
+                Y.COUNT.FIELD = COUNT(Y.MSG.CONV,Y.FIELD.SOURCE.I)
+
+                FOR A=1 TO Y.COUNT.FIELD
+
+                    FINDSTR Y.FIELD.SOURCE.I:':':'EQ' IN Y.MSG.CONV SETTING AP,VP,SP THEN
+*FINDSTR Y.FIELD.SOURCE.I:':':A:':1' IN Y.MSG.CONV SETTING AP,VP,SP THEN
+                        Y.VALUE<A> = Y.MSG.CONV<AP,2>
+                    END
+                NEXT A
+
+                CONVERT FM TO ',' IN Y.MSG.CONV
+                CONVERT VM TO '=' IN Y.MSG.CONV
+
+            CASE Y.METHOD.TYPE.I = 'CON'
+                Y.VALUE = R.INTG.MAP<T24.INTG.MAP.FIELD.CONSTANT, I>
+            CASE Y.METHOD.TYPE.I = 'RTN'
+                Y.RTN = R.INTG.MAP<T24.INTG.MAP.FIELD.RTN, I>
+                CALL @Y.RTN(Y.VALUE)
+            END CASE
+
+            CONVERT FM TO '' IN Y.VALUE
+
+            IF Y.VALUE <> '' THEN
+                Y.MAX.LENGTH = R.INTG.MAP<T24.INTG.MAP.MAX.LENGTH, I>
+                Y.COUNT.VALUE = 1
+
+                IF Y.MAX.LENGTH <> '' THEN
+                    GOSUB CHECK.LENGTH
+                    Y.COUNT.VALUE = DCOUNT(Y.VALUE.MULT,VM)
+                END
+                ELSE
+                    Y.VALUE.MULT = Y.VALUE
+                END
+
+                FOR J=1 TO Y.COUNT.VALUE
+                    Y.VALUE = Y.VALUE.MULT
+                    Y.OFS.MSG.ADD<J> = (R.INTG.MAP<T24.INTG.MAP.FIELD.APPLICATION, I>):':':'EQ=':Y.VALUE<1,J>
+                NEXT J
+
+                Y.OFS.MSG<-1> = Y.OFS.MSG.ADD
+            END
+
+        NEXT I
+
+
+        CONVERT FM TO ',' IN Y.OFS.MSG
+
+        Y.VERSION.USED = R.INTG.MAP<T24.INTG.MAP.VERSION.USED>
+
+        IF Y.VERSION.USED[1,1] EQ '@' THEN
+            Y.RET.VALUE = Y.OFS.MSG
+            Y.RTN = FIELD(Y.VERSION.USED,"@",2)
+            CALL @Y.RTN(Y.RET.VALUE)
+        END
+        ELSE
+            Y.RET.VALUE = Y.VERSION.USED
+        END
+
+        Y.MSG.HEADER = Y.OFS.APP.REQ:',':',':Y.OFS.PWD:',':Y.RET.VALUE:','
+*DEBUG
+    END
+    ELSE
+*CASE Y.OFS.APP.REQ EQ ''
+*DEBUG
+*FOR I=1 TO Y.COUNT
+
+*CONVERT '"' TO VM IN Y.RESP.ENQ.2
+*Y.METHOD.TYPE.I = R.INTG.MAP<T24.INTG.MAP.METHOD.TYPE, I>
+*BEGIN CASE
+*CASE Y.METHOD.TYPE.I = 'CON'
+*Y.VALUE = R.INTG.MAP<T24.INTG.MAP.FIELD.CONSTANT, I>
+*CASE Y.METHOD.TYPE.I = 'RTN'
+*Y.RTN = R.INTG.MAP<T24.INTG.MAP.FIELD.RTN, I>
+*CALL @Y.RTN(Y.VALUE)
+*CONVERT ',' TO '' IN Y.VALUE
+*END CASE
+
+
+*DEBUG
+*Y.FLD.APP = R.INTG.MAP<T24.INTG.MAP.FIELD.APPLICATION, I>
+
+*FINDSTR 'SUCCESS' IN Y.RESP.ENQ.2 SETTING Ap, Vp THEN
+
+*Y.RESP.ENQ.2 = REPLACE(Y.RESP.ENQ.2,1,Vp;Y.VALUE)
+*END
+*CONVERT VM TO '"' IN Y.RESP.ENQ.2
+
+*NEXT I
+        FOR I=1 TO Y.COUNT
+            Y.VALUE = ""
+            Y.VALUE.MULT = ""
+            Y.OFS.MSG.ADD = ""
+            Y.METHOD.TYPE.I = R.INTG.MAP<T24.INTG.MAP.METHOD.TYPE, I>
+            BEGIN CASE
+            CASE Y.METHOD.TYPE.I = 'INT'
+                Y.RESP.ENQ.1 = FIELDS(Y.MSG,',',2)
+                Y.RESP.ENQ.2 = FIELDS(Y.MSG,',',3,99999)
+                Y.MSG.CONV = CHANGE(Y.RESP.ENQ.2,',',FM)
+                Y.MSG.CONV = CHANGE(Y.MSG.CONV,'=',VM)
+
+                Y.FIELD.SOURCE.I = R.INTG.MAP<T24.INTG.MAP.FIELD.SOURCE, I>
+
+                Y.COUNT.FIELD = COUNT(Y.MSG.CONV,Y.FIELD.SOURCE.I)
+
+                FOR A=1 TO Y.COUNT.FIELD
+
+                    FINDSTR Y.FIELD.SOURCE.I:':':A:':1' IN Y.MSG.CONV SETTING AP,VP,SP THEN
+                        Y.VALUE<A> = Y.MSG.CONV<AP,2>
+                    END
+                NEXT A
+
+                CONVERT FM TO ',' IN Y.MSG.CONV
+                CONVERT VM TO '=' IN Y.MSG.CONV
+
+            CASE Y.METHOD.TYPE.I = 'CON'
+                Y.VALUE = R.INTG.MAP<T24.INTG.MAP.FIELD.CONSTANT, I>
+            CASE Y.METHOD.TYPE.I = 'RTN'
+                Y.RTN = R.INTG.MAP<T24.INTG.MAP.FIELD.RTN, I>
+                CALL @Y.RTN(Y.VALUE)
+            END CASE
+
+            CONVERT FM TO '' IN Y.VALUE
+
+            IF Y.VALUE <> '' THEN
+                Y.MAX.LENGTH = R.INTG.MAP<T24.INTG.MAP.MAX.LENGTH, I>
+                Y.COUNT.VALUE = 1
+
+                IF Y.MAX.LENGTH <> '' THEN
+                    GOSUB CHECK.LENGTH
+                    Y.COUNT.VALUE = DCOUNT(Y.VALUE.MULT,VM)
+                END
+                ELSE
+                    Y.VALUE.MULT = Y.VALUE
+                END
+
+                FOR J=1 TO Y.COUNT.VALUE
+                    Y.VALUE = Y.VALUE.MULT
+                    Y.OFS.MSG.ADD<J> = (R.INTG.MAP<T24.INTG.MAP.FIELD.APPLICATION, I>):':':'EQ=':Y.VALUE<1,J>
+                NEXT J
+
+                Y.OFS.MSG<-1> = Y.OFS.MSG.ADD
+            END
+
+        NEXT I
+
+
+        CONVERT FM TO ',' IN Y.OFS.MSG
+        Y.MSG.HEADER = ',':Y.RESP.ENQ.1:','
+*Y.OFS.MSG = Y.RESP.ENQ.2
+
+
+    END
+
+
+*DEBUG
+    Y.MSG = Y.MSG.HEADER:Y.OFS.MSG
+
+    Y.INT.TYPE = 'ORC'
+    Y.LOG.LEVEL = 'DEBUG'
+    Y.MSG.WRT = "Ocrestasi Resposne : " : Y.MSG
+
+    CALL IDI.WRITE.LOG.INT(Y.INT.TYPE,Y.LOG.LEVEL,Y.MSG.WRT)
+    RETURN
+*-----------------------------------------------------------------------------
+CHECK.LENGTH:
+
+    Y.LEN.VALUE = LEN(Y.VALUE)
+    Y.LEN = Y.MAX.LENGTH
+    IF Y.LEN.VALUE > Y.MAX.LENGTH THEN
+        X = 1
+        Y = 1
+        LOOP
+        WHILE Y.LEN.VALUE > 0
+            IF Y.LEN.VALUE > Y.MAX.LENGTH THEN
+                Y.LEN = Y.MAX.LENGTH
+            END
+
+            Y.VALUE.MULT<1,X> = Y.VALUE[Y,Y.LEN]
+
+            Y.LEN.VALUE = Y.LEN.VALUE - Y.MAX.LENGTH
+
+            X = X + 1
+            Y.COUNT.LEN = Y.VALUE.MULT
+*Y.COUNT.LEN = CHANGE(Y.COUNT.LEN,VM,'')
+
+            Y = LEN(Y.COUNT.LEN) + 1
+
+            Y.LEN = Y.LEN.VALUE
+        REPEAT
+    END
+    ELSE
+        Y.VALUE.MULT = Y.VALUE
+    END
+    RETURN
+*-----------------------------------------------------------------------------
+
+
+CALL.ERROR:
+
+    CRT "ERROR NIH"
+
+    RETURN
+*-----------------------------------------------------------------------------
+END
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

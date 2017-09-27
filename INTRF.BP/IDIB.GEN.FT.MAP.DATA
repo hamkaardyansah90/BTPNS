@@ -1,0 +1,390 @@
+*-----------------------------------------------------------------------------
+* <Rating>-105</Rating>
+* 14:15:01 12 AUG 2016 * 14:06:36 12 AUG 2016 * 13:57:03 12 AUG 2016 * 11:24:46 12 AUG 2016 * 10:49:11 12 AUG 2016 * 10:37:47 12 AUG 2016 * 16:21:15 28 JUL 2016 * 17:56:05 27 JUL 2016 * 17:49:21 27 JUL 2016 * 17:36:44 27 JUL 2016 
+* AT240301D01/btpnsqua * AT240301D01/btpnsqua * AT240301D01/btpnsqua * AT240301D01/btpnsqua * AT240301D01/btpnsqua * AT240301D01/btpnsqua * AT240301D01/btpnsqua * AT240301D01/btpnsqua * AT240301D01/btpnsqua * AT240301D01/btpnsqua 
+*-----------------------------------------------------------------------------
+**ROUTINE TO WRITE REPORT CHANNEL & IF THOSE RECORD WS.DATA HAVE CHARGES, THOSE CHARGES WILL BE WRITE TO
+    SUBROUTINE IDIB.GEN.FT.MAP.DATA(Y.ID)
+
+*-----------------------------------------------------------------------------
+**CREATED BY ATILHM
+**HISTORY**
+**MODIFIED ATILH(20160119) ADD DEBIT AND CREDIT ACCT NO
+*20160615- MODIFIED ATILHM, modified flow process generate teksfile
+*------------------------------------------------------------------------------
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_IDIB.GEN.FT.MAP.DATA.COMMON
+    $INSERT I_F.IDIH.WS.DATA.FT.MAP
+    $INSERT I_F.IDIH.IN.FT.JOURNAL.PAR
+    $INSERT I_F.FUNDS.TRANSFER
+    $INSERT I_GTS.COMMON
+    $INSERT I_BATCH.FILES
+    $INSERT I_TSA.COMMON
+
+    GOSUB INIT
+    GOSUB PROCESS
+
+    RETURN
+*--------------------------------------------------------------------------
+INIT:
+*--------------------------------------------------------------------------
+    FN.WS.DATA = 'F.IDIH.WS.DATA.FT.MAP'
+    F.WS.DATA = ''
+    CALL OPF(FN.WS.DATA,F.WS.DATA)
+
+    FN.JRN.PAR = 'F.IDIH.IN.FT.JOURNAL.PAR'
+    F.JRN.PAR = ''
+    CALL OPF(FN.JRN.PAR,F.JRN.PAR)
+
+    FN.FUNDS.TRF = 'F.FUNDS.TRANSFER$HIS'
+    F.FUND.TRF = ''
+    CALL OPF(FN.FUNDS.TRF,F.FUNDS.TRF)
+
+    FN.FT.TRF = 'FBNK.FUNDS.TRANSFER'
+    F.FT.TRF = ''
+    CALL OPF(FN.FT.TRF,F.FT.TRF)
+
+*CALL LOCAL TABLE IN.CHG.ACC.CR, IN.CHG.ACC.DB, IN.CHG.AMT IN FT TABLE
+    Y.APP = "FUNDS.TRANSFER"
+    Y.FIELDS = "IN.CHG.ACC.DB":@VM:"IN.CHG.ACC.CR":@VM:"IN.CHG.AMT"
+    CALL MULTI.GET.LOC.REF(Y.APP,Y.FIELDS,Y.POS)
+
+**POSITION LOCAL TABLE IN.CHG.ACC.DB, IN.CHG.ACC.CR, IN.CHG.AMT
+    Y.IN.CHG.ACC.DB.POS = Y.POS<1,1>
+    Y.IN.CHG.ACC.CR.POS = Y.POS<1,2>
+    Y.IN.CHG.AMT.POS = Y.POS<1,3>
+
+    Y.ID.FT.MAP = Y.ID
+
+    Y.ADDITIONAL.INFO = Y.ID:'|':Y.FLDR.OUT:'|':Y.TITLE.OUT
+    Y.ID.MAP = 'TXT.GENFTMAP'
+
+    Y.OUTPUT = ''
+
+    RETURN
+
+*------------------------------------------------------------------------
+PROCESS:
+*------------------------------------------------------------------------
+
+**WRITE TRANSACTION FT
+
+**LOOKUP TO TEMP TABLE(IDIH.WS.DATA.FT.MAP)
+
+    CALL F.READ(FN.WS.DATA,Y.ID,R.WS.DATA,F.WS.DATA,ERR)
+*-------------------------------------------
+
+    Y.IN.UNIQUE.ID = R.WS.DATA<WS.DATA.FT.IN.UNIQUE.ID>
+    CALL F.READ(FN.JRN.PAR,Y.IN.UNIQUE.ID,R.JRN.PAR,F.JRN.PAR,ERR)
+    IF R.JRN.PAR NE '' THEN
+        Y.DESC.CODE.JOURNAL = R.JRN.PAR<JOURNAL.PAR.DESCRIPTION>
+        Y.CR.COMMTYP = R.JRN.PAR<JOURNAL.PAR.CHRG.CODE.CR>
+        Y.DB.COMMTYP = R.JRN.PAR<JOURNAL.PAR.CHRG.CODE.DB>
+        Y.CHRG.DESCRIPTION = R.JRN.PAR<JOURNAL.PAR.CHRG.DESCRIPTION>
+    END
+*--------------------------
+
+    Y.NO.FT = R.WS.DATA<WS.DATA.FT.NO.FT>
+    CALL F.READ.HISTORY(FN.FUNDS.TRF,Y.NO.FT,R.FUNDS.TRF,F.FUNDS.TRF,ERR)
+    IF R.FUNDS.TRF NE '' THEN
+        Y.CHG.DB = R.FUNDS.TRF<FT.LOCAL.REF><1,Y.IN.CHG.ACC.DB.POS>
+        Y.DB.AMT = R.FUNDS.TRF<FT.DEBIT.AMOUNT>
+        Y.CR.AMT = R.FUNDS.TRF<FT.CREDIT.AMOUNT>
+        Y.CR.DATE = R.FUNDS.TRF<FT.CREDIT.VALUE.DATE>
+        Y.DB.DATE = R.FUNDS.TRF<FT.DEBIT.VALUE.DATE>
+        Y.ACCT.CR.FT = R.FUNDS.TRF<FT.CREDIT.ACCT.NO>
+        Y.ACCT.DB.FT = R.FUNDS.TRF<FT.DEBIT.ACCT.NO>
+        Y.PROC.DATE = R.FUNDS.TRF<FT.DATE.TIME>
+    END ELSE
+        Y.NO.FT = FIELD(Y.NO.FT,";",1)
+        CALL F.READ(FN.FT.TRF,Y.NO.FT,R.FT.TRF,F.FT.TRF,ERR.FT)
+        Y.CHG.DB = R.FT.TRF<FT.LOCAL.REF><1,Y.IN.CHG.ACC.DB.POS>
+        Y.DB.AMT = R.FT.TRF<FT.DEBIT.AMOUNT>
+        Y.CR.AMT = R.FT.TRF<FT.CREDIT.AMOUNT>
+        Y.CR.DATE = R.FT.TRF<FT.CREDIT.VALUE.DATE>
+        Y.DB.DATE = R.FT.TRF<FT.DEBIT.VALUE.DATE>
+        Y.ACCT.CR.FT = R.FT.TRF<FT.CREDIT.ACCT.NO>
+        Y.ACCT.DB.FT = R.FT.TRF<FT.DEBIT.ACCT.NO>
+        Y.PROC.DATE = R.FT.TRF<FT.DATE.TIME>
+
+    END
+
+*--------------------------
+    Y.IN.TRNS.DT = R.WS.DATA<WS.DATA.FT.IN.TRNS.DT.TM>
+    Y.IN.STAN = R.WS.DATA<WS.DATA.FT.IN.STAN>
+    Y.REV.ID = Y.ID
+    Y.PAYMENT.DTLS = R.WS.DATA<WS.DATA.FT.PAYMENT.DETAILS>
+    Y.STATUS.REC = R.WS.DATA<WS.DATA.FT.IN.STATUS.REC>
+    Y.DESC.ERROR = R.WS.DATA<WS.DATA.FT.ERROR.DESC>
+*ADD ADDITIONAL DATA
+    Y.BENEF.BANK = R.WS.DATA<WS.DATA.FT.IN.BENEF.BANK>
+    Y.CHANNEL.ID = R.WS.DATA<WS.DATA.FT.IN.CHANNEL.ID>
+    Y.PRM.ACC.NO = R.WS.DATA<WS.DATA.FT.IN.PRM.ACC.NO>
+    Y.TERMINAL.ID = R.WS.DATA<WS.DATA.FT.IN.TERMINAL.ID>
+    Y.BENEF.ACC = R.WS.DATA<WS.DATA.FT.IN.BENEF.ACCT>
+    Y.SRC.BANK = R.WS.DATA<WS.DATA.FT.IN.SRC.BANK>
+    Y.IN.PAYEE = R.WS.DATA<WS.DATA.FT.IN.PAYEE>
+**MODIFIED ATILH(20160119) ADD DEBIT AND CREDIT ACCT NO
+    Y.DB.ACCT.WS = R.WS.DATA<WS.DATA.FT.DEBIT.ACCT.NO>
+    Y.CR.ACCT.WS = R.WS.DATA<WS.DATA.FT.CREDIT.ACCT.NO>
+    Y.DB.AMT.WS = R.WS.DATA<WS.DATA.FT.DEBIT.AMOUNT>
+    Y.CR.AMT.WS = R.WS.DATA<WS.DATA.FT.CREDIT.AMOUNT>
+
+    GOSUB BUILD.OUTPUT.MAIN
+
+**FOR RECON CHARGES LOOKUP TO IN.CHG.ACC.CR, IN.CHG.ACC.DB, IN.CHG.AMT IN FT TABLE
+
+
+    Y.JML.CHG.DB = DCOUNT(Y.CHG.DB, @SM)
+
+    FOR X = 1 TO Y.JML.CHG.DB
+
+*Y.ADDITIONAL.INFO = ''
+*Y.ID = Y.IN.UNIQUE.ID
+*Y.ADDITIONAL.INFO = Y.ID:'|':Y.FLDR.OUT:'|':Y.TITLE.OUT
+*Y.ID.MAP = 'TXT.GENCHGMAP'
+*GET CHARGES ACCOUNT DEBET, CREDIT, AMOUNT
+        Y.CHG.ACC.DB = R.FUNDS.TRF<FT.LOCAL.REF><1,Y.IN.CHG.ACC.DB.POS, X>
+        Y.CHG.ACC.CR = R.FUNDS.TRF<FT.LOCAL.REF><1,Y.IN.CHG.ACC.CR.POS, X>
+        Y.CHG.AMT = R.FUNDS.TRF<FT.LOCAL.REF><1,Y.IN.CHG.AMT.POS, X>
+**WRITE CHARGES
+
+        GOSUB BUILD.OUTPUT.CHRG
+*CALL IDI.CONST.OUTPUT.RTN(Y.ID.MAP,Y.ADDITIONAL.INFO,Y.RESPONSE)
+
+    NEXT X
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+BUILD.OUTPUT.MAIN:
+*-----------------------------------------------------------------------------
+*DEBUG
+    Y.OUTPUT.LIST = Y.CHANNEL.ID        ;*1
+    Y.OUTPUT.LIST := "|": Y.PRM.ACC.NO  ;*2
+    Y.OUTPUT.LIST := "|": Y.TERMINAL.ID ;*3
+    Y.OUTPUT.LIST := "|": Y.BENEF.ACC   ;*4
+    Y.OUTPUT.LIST := "|": Y.BENEF.BANK  ;*5
+    Y.OUTPUT.LIST := "|": Y.SRC.BANK    ;*6
+    Y.OUTPUT.LIST := "|": Y.IN.TRNS.DT  ;*7
+    Y.OUTPUT.LIST := "|": Y.IN.PAYEE    ;*8
+    Y.OUTPUT.LIST := "|": Y.REV.ID      ;*9
+
+    GOSUB GET.COMM.TYP
+    Y.OUTPUT.LIST := "|": Y.COMM.TYP    ;*10
+
+    GOSUB GET.AMT.CR
+    Y.OUTPUT.LIST := "|": Y.RET.AMT.CR  ;*11
+
+    IF Y.CR.DATE EQ '' THEN
+        Y.CR.DATE = Y.DB.DATE
+    END
+
+    Y.OUTPUT.LIST := "|": Y.CR.DATE     ;*12
+
+    IF Y.ACCT.CR.FT EQ '' THEN
+        Y.ACCT.CR.FT = Y.CR.ACCT.WS
+    END
+    Y.OUTPUT.LIST := "|": Y.ACCT.CR.FT  ;*13
+
+    GOSUB GET.AMT.DB
+    Y.OUTPUT.LIST := "|": Y.RET.AMT.DB  ;*14
+
+    IF Y.ACCT.DB.FT EQ '' THEN
+        Y.ACCT.DB.FT = Y.DB.ACCT.WS
+    END
+    Y.OUTPUT.LIST := "|": Y.ACCT.DB.FT  ;*15
+
+    Y.OUTPUT.LIST := "|": Y.IN.STAN     ;*16
+    IF Y.PAYMENT.DTLS EQ '' THEN
+        Y.PAYMENT.DTLS = Y.DESC.CODE.JOURNAL
+    END
+    Y.OUTPUT.LIST := "|": Y.PAYMENT.DTLS          ;*17
+
+    IF Y.STATUS.REC EQ 'Error' THEN
+        Y.PROC.DATE = ''
+    END
+    Y.OUTPUT.LIST := "|": Y.PROC.DATE   ;*18
+    Y.NO.FT = FIELD(Y.NO.FT,";",1)
+    IF Y.STATUS.REC EQ 'Error' THEN
+        Y.NO.FT = ''
+    END
+    Y.OUTPUT.LIST := "|": Y.NO.FT       ;*19
+    Y.OUTPUT.LIST := "|": Y.IN.UNIQUE.ID          ;*20
+
+    Y.OUTPUT.LIST := "|": Y.STATUS.REC  ;*21
+
+*CONVERT @FM TO "^" IN Y.OUTPUT
+
+    GOSUB WRITE.TEMP
+
+    RETURN
+*-----------------------------------------------------------------------------
+BUILD.OUTPUT.CHRG:
+*-----------------------------------------------------------------------------
+*DEBUG
+*Y.FLAG.TRX = 'CHRG'
+
+    Y.OUTPUT.LIST = Y.CHANNEL.ID        ;*1
+    Y.OUTPUT.LIST := "|": Y.PRM.ACC.NO  ;*2
+    Y.OUTPUT.LIST := "|": Y.TERMINAL.ID ;*3
+    Y.OUTPUT.LIST := "|": Y.BENEF.ACC   ;*4
+    Y.OUTPUT.LIST := "|": Y.BENEF.BANK  ;*5
+    Y.OUTPUT.LIST := "|": Y.SRC.BANK    ;*6
+    Y.OUTPUT.LIST := "|": Y.IN.TRNS.DT  ;*7
+    Y.OUTPUT.LIST := "|": Y.IN.PAYEE    ;*8
+    Y.OUTPUT.LIST := "|": Y.REV.ID      ;*9
+
+    GOSUB GET.COMM.TYP
+    Y.OUTPUT.LIST := "|": Y.COMM.TYP    ;*10
+    Y.OUTPUT.LIST := "|": Y.CHG.AMT     ;*11
+
+    IF Y.CR.DATE EQ '' THEN
+        Y.CR.DATE = Y.DB.DATE
+    END
+    Y.OUTPUT.LIST := "|": Y.CR.DATE     ;*12
+    Y.OUTPUT.LIST := "|": Y.CHG.ACC.CR  ;*13
+    Y.OUTPUT.LIST := "|": Y.CHG.AMT     ;*14
+    Y.OUTPUT.LIST := "|": Y.CHG.ACC.DB  ;*15
+    Y.OUTPUT.LIST := "|": Y.IN.STAN     ;*16
+    IF Y.PAYMENT.DTLS EQ '' THEN
+        Y.PAYMENT.DTLS = Y.DESC.CODE.JOURNAL
+    END
+    Y.OUTPUT.LIST := "|": Y.PAYMENT.DTLS          ;*17
+    IF Y.STATUS.REC EQ 'Error' THEN
+        Y.PROC.DATE = ''
+    END
+    Y.OUTPUT.LIST := "|": Y.PROC.DATE   ;*17
+*DEBUG
+    Y.NO.FT = FIELD(Y.NO.FT,";",1)
+    IF Y.STATUS.REC EQ 'Error' THEN
+        Y.NO.FT = ''
+    END
+    Y.OUTPUT.LIST := "|": Y.NO.FT       ;*18
+    Y.OUTPUT.LIST := "|": Y.IN.UNIQUE.ID          ;*19
+
+*IF Y.STATUS.REC NE 'Success' THEN
+*Y.STATUS.REC = 'Error'
+*END
+    Y.OUTPUT.LIST := "|": Y.STATUS.REC  ;*20
+
+*CONVERT @FM TO "^" IN Y.OUTPUT
+    GOSUB WRITE.TEMP
+    RETURN
+*-----------------------------------------------------------------------------
+WRITE.TEMP:
+*-----------------------------------------------------------------------------
+
+    Y.ID.REPORTATM.TEMP = TODAY : "-" : FMT(AGENT.NUMBER, "R&0#4")
+
+    READ R.REPORTATM.TEMP FROM F.REPORTATM.TEMP,Y.ID.REPORTATM.TEMP THEN
+
+    END
+    R.REPORTATM.TEMP<-1> = Y.OUTPUT.LIST
+    WRITE R.REPORTATM.TEMP TO F.REPORTATM.TEMP,Y.ID.REPORTATM.TEMP
+
+
+    RETURN
+
+*------------------------------------------------------------------------------
+GET.COMM.TYP:
+
+    IF Y.CR.COMMTYP NE '' THEN
+        Y.COMM.TYP = Y.CR.COMMTYP
+    END ELSE
+        Y.COMM.TYP = Y.DB.COMMTYP
+    END
+
+    CONVERT VM TO '' IN Y.COMM.TYP
+    CONVERT FM TO '' IN Y.COMM.TYP
+    CONVERT SM TO '' IN Y.COMM.TYP
+
+    RETURN
+*------------------------------------------------------------------------------
+GET.AMT.CR:
+*------------------------------------------------------------------------------
+**CONDITION IF CR.AMT BLANK THEN LOOKUP TO CREDIT AMT
+
+    IF Y.CR.AMT NE '' THEN
+        Y.RET.AMT.CR = Y.CR.AMT
+    END ELSE
+        Y.RET.AMT.CR  = Y.DB.AMT
+    END
+
+    IF Y.RET.AMT.CR EQ '' THEN
+        Y.RET.AMT.CR  = Y.CR.AMT.WS
+    END
+
+    IF Y.RET.AMT.CR EQ '' THEN
+        Y.RET.AMT.CR  = Y.DB.AMT.WS
+    END
+
+    RETURN
+
+*------------------------------------------------------------------------------
+GET.AMT.DB:
+*------------------------------------------------------------------------------
+**CONDITION IF CR.AMT BLANK THEN LOOKUP TO CREDIT AMT
+    IF Y.CR.AMT NE '' THEN
+        Y.RET.AMT.DB = Y.CR.AMT
+    END ELSE
+        Y.RET.AMT.DB  = Y.DB.AMT
+    END
+
+    IF Y.RET.AMT.DB EQ '' THEN
+        Y.RET.AMT.DB  = Y.CR.AMT.WS
+    END
+
+    IF Y.RET.AMT.DB EQ '' THEN
+        Y.RET.AMT.DB  = Y.DB.AMT.WS
+    END
+    RETURN
+*------------------------------------------------------------------------------
+END
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

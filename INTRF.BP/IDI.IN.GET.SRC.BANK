@@ -1,0 +1,19 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE IDI.IN.GET.SRC.BANK(Y.RET.VALUE)
+*ROUTINE TO GET BENEF.BANK NO FOR EXTRACT FILE CHARGES RECON ATM
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.IDIH.WS.DATA.FT.MAP
+    $INSERT I_IDIB.GEN.FT.MAP.DATA.COMMON
+
+    Y.RET.VALUE = ''
+*DEBUG
+
+    Y.RET.VALUE =  Y.SRC.BANK
+
+    RETURN
+
+END
+

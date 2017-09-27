@@ -1,0 +1,23 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE IDI.INTF.CONV.CREDIT.AMT(Y.RET.VALUE)
+**ROUTINE TO CONVERT CREDIT AMOUNT
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.IDIH.WS.DATA.FT.MAP
+    $INSERT I_IDI.WS.INC.PRE.PROCESS.COMMON
+
+    FINDSTR 'CREDIT.AMOUNT' IN Y.MSG.SHARE SETTING AP,VP,SP THEN
+        Y.CREDIT.AMT = Y.MSG.SHARE<AP,2>
+    END
+
+    Y.RET.VALUE = FIELDS(Y.CREDIT.AMT,'.',1)
+    RETURN
+END
+
+
+
+
+

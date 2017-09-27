@@ -1,0 +1,141 @@
+*-----------------------------------------------------------------------------
+* <Rating>110</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE IDI.WS.CHANGE.MESSAGE(Y.APP,Y.MESSAGE,Y.COMP)
+
+*create by galuh.gp ; galuh.pranata@anabatic.com
+*Jun 2014
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.IDIH.APP.CHG.MSG.PARAM
+    $INSERT I_IDI.WS.CHANGE.MESSAGE.COMMON
+
+    GOSUB INIT
+    GOSUB PRE.PROCESS
+
+    CONVERT FM TO ',' IN Y.MESSAGE
+    CONVERT VM TO '=' IN Y.MESSAGE
+    CONVERT "|" TO VM IN Y.MESSAGE
+
+
+    RETURN
+
+INIT:
+    FN.DATA.PAR = 'F.IDIH.APP.CHG.MSG.PARAM'
+    F.DATA.PAR = ''
+    CALL OPF(FN.DATA.PAR,F.DATA.PAR)
+
+    Y.MESSAGE.CHG = Y.MESSAGE
+
+    CONVERT ',' TO FM IN Y.MESSAGE
+    RETURN
+
+PRE.PROCESS:
+
+    CALL F.READ(FN.DATA.PAR,'BTPNS',R.DATA.PAR,F.DATA.PAR,ERR)
+
+    Y.APPLICATION = R.DATA.PAR<APP.PAR.APPLICATION>
+
+    FIND Y.APP IN Y.APPLICATION SETTING AP,VP,SP THEN
+        Y.FIELD = R.DATA.PAR<APP.PAR.FIELDS, VP>
+        Y.CHANGE.MODE = R.DATA.PAR<APP.PAR.CHANGE.MODE, VP>
+        Y.TYPE.MODE = R.DATA.PAR<APP.PAR.TYPE.MODE, VP>
+        Y.MULTI.FIELD = R.DATA.PAR<APP.PAR.MULTI.FIELD, VP>
+
+        Y.COUNT.FIELD = DCOUNT(Y.FIELD,SM)
+
+        FOR I.FIELD = 1 TO Y.COUNT.FIELD
+
+            Y.FIELD.I = R.DATA.PAR<APP.PAR.FIELDS, VP, I.FIELD>
+            Y.CHANGE.MODE.I = R.DATA.PAR<APP.PAR.CHANGE.MODE, VP, I.FIELD>
+            Y.TYPE.MODE.I = R.DATA.PAR<APP.PAR.TYPE.MODE, VP, I.FIELD>
+            Y.MULTI.FIELD.I = R.DATA.PAR<APP.PAR.MULTI.FIELD, VP, I.FIELD>
+            Y.VALUE.CONDITION = R.DATA.PAR<APP.PAR.CONDITION, VP, I.FIELD>
+            Y.VALUE.CONVERSION = R.DATA.PAR<APP.PAR.CONVERSION, VP, I.FIELD>
+            IF Y.MULTI.FIELD.I EQ '' THEN Y.MULTI.FIELD.I = 1
+
+            GOSUB PROCESS.CHANGE
+        NEXT I.FIELD
+
+    END
+
+    RETURN
+*===============
+PROCESS.CHANGE:
+*===============
+    BEGIN CASE
+    CASE Y.TYPE.MODE.I = 'RTN'
+        Y.RTN.SOURCE = R.DATA.PAR<APP.PAR.RTN.SOURCE, VP, I.FIELD>
+        Y.OUT = Y.MESSAGE:'|||':Y.COMP
+        CALL @Y.RTN.SOURCE(Y.OUT)
+        Y.VALUE = Y.OUT
+        Y.COUNT.POSITION = DCOUNT(Y.POSITION,FM)
+    CASE Y.TYPE.MODE.I = 'CON'
+        Y.VALUE = R.DATA.PAR<APP.PAR.CON.SOURCE, VP, I.FIELD>
+        CONVERT '/' TO FM IN Y.VALUE
+    END CASE
+
+    BEGIN CASE
+    CASE Y.CHANGE.MODE.I = 'ADD'
+        FOR I=1 TO Y.MULTI.FIELD.I
+            Y.ADD.MSG<I> = Y.FIELD.I:':':I:':1=':Y.VALUE<I>
+        NEXT I
+        Y.MESSAGE.CHG = Y.MESSAGE:FM:Y.ADD.MSG
+    CASE Y.CHANGE.MODE.I = 'MOD'
+        FINDSTR Y.FIELD.I IN Y.MESSAGE SETTING AP2,VP2,SP2 THEN
+            Y.VALUE.CONDITION = R.DATA.PAR<APP.PAR.CONDITION, VP, I.FIELD>
+            Y.VALUE.CONVERSION = R.DATA.PAR<APP.PAR.CONVERSION, VP, I.FIELD>
+            Y.COUNT.CONDITION = DCOUNT(Y.VALUE.CONDITION,'/')
+            Y.COUNT = COUNT(Y.MESSAGE, Y.FIELD.I)
+
+            GOSUB GET.VALUE.MOD
+
+            Y.MESSAGE.CHG = Y.MESSAGE
+        END
+    CASE Y.CHANGE.MODE = 'DEL'
+
+    END CASE
+
+    Y.MESSAGE = Y.MESSAGE.CHG
+
+    RETURN
+*=================================================
+GET.VALUE.MOD:
+
+    IF Y.VALUE.CONDITION NE '' AND Y.TYPE.MODE.I = 'CON' THEN
+        Y.FLAG = 0
+        FOR X=1 TO Y.COUNT.CONDITION
+            IF Y.FLAG EQ 0 THEN
+                CONVERT '=' TO VM IN Y.MESSAGE
+                Y.VALUE.ORI = Y.MESSAGE<AP2,2>
+                CONVERT '/' TO SM IN Y.VALUE.CONDITION
+                FINDSTR Y.VALUE.ORI IN Y.VALUE.CONDITION SETTING AP3,VP3,SP3 THEN
+                    Y.MESSAGE<AP2,2> = FIELD(Y.VALUE.CONVERSION,'/',SP3)
+                    Y.FLAG = 1
+                END
+            END
+        NEXT X
+    END
+    ELSE
+        CONVERT '=' TO VM IN Y.MESSAGE
+        CONVERT VM TO "|" IN Y.VALUE
+        Y.COUNT.VALUE = DCOUNT(Y.VALUE,"|")
+        IF Y.COUNT.VALUE > 1 THEN
+            FOR Y=1 TO Y.COUNT.POSITION
+                Y.POS = Y.POSITION<Y>
+                Y.MESSAGE<Y.POS,2> = FIELD(Y.VALUE,"|",Y)
+            NEXT Y
+        END
+        ELSE
+            Y.MESSAGE<AP2,2> = Y.VALUE
+        END
+    END
+
+    RETURN
+*=================================================
+END
+*=================================================
+
+
+

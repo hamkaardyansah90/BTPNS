@@ -1,0 +1,33 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+**SUBROUTINE TO SHOW ACCOUNT GENDER
+**CREATED ATIAGS(20150624)
+
+    SUBROUTINE IDIE.CONV.GENDER.ACCT
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+    $INSERT I_F.CUSTOMER
+
+    FN.CUST = 'F.CUSTOMER'
+    F.CUST = ''
+    CALL OPF(FN.CUST,F.CUST)
+ 
+    CALL F.READ(FN.CUST, O.DATA, R.CUST, F.CUST, ERR.CUST)
+    Y.ACC.GENDER = R.CUST<EB.CUS.GENDER>
+    O.DATA = ''
+
+    BEGIN CASE
+    CASE Y.ACC.GENDER EQ 'MALE'
+        O.DATA = 'M'
+    CASE Y.ACC.GENDER EQ 'FEMALE'
+        O.DATA = 'F'
+    END CASE
+
+    RETURN
+END
+
+
+

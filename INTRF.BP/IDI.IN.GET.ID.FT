@@ -1,0 +1,18 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE IDI.IN.GET.ID.FT(Y.RET.VALUE)
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.FUNDS.TRANSFER
+    $INSERT I_IDI.WS.INC.POST.PROCESS.COMMON
+
+    Y.RET.VALUE = Y.ID.ORC
+
+    RETURN
+
+END
+
+
+
+

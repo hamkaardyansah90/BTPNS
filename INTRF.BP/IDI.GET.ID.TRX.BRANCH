@@ -1,0 +1,67 @@
+*-----------------------------------------------------------------------------
+* <Rating>-20</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE IDI.GET.ID.TRX.BRANCH(Y.OUT)
+
+**CREATED ATILHM(20150312)
+**ROUTINE TO GET BRANCH FROM PARAMTER INTERFACE
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.IDIH.IN.FT.JOURNAL.PAR
+    $INSERT I_IDI.WS.INC.PRE.PROCESS.COMMON
+    $INSERT I_F.FUNDS.TRANSFER
+    $INSERT I_F.IDIH.WS.DATA.FT.MAP
+
+*DEBUG
+
+    GOSUB INIT
+    GOSUB PROCESS
+
+    RETURN
+*------------------------------------------------------------
+INIT:
+*DEBUG
+    FN.JRN.PAR      = 'F.IDIH.IN.FT.JOURNAL.PAR'
+    F.JRN.PAR       = ''
+    CALL OPF(FN.JRN.PAR,F.JRN.PAR)
+
+    FN.FT.MAP = 'F.IDIH.WS.DATA.FT.MAP'
+    F.FT.MAP = ''
+    CALL OPF(FN.FT.MAP,F.FT.MAP)
+
+    FN.FUNDS.TRF = 'F.FUNDS.TRANSFER'
+    F.FUNDS.TRF = ''
+    CALL OPF(FN.FUNDS.TRF,F.FUNDS.TRF)
+
+    FINDSTR 'IN.UNIQUE.ID' IN Y.MSG.SHARE SETTING AP,VP,SP THEN
+        Y.IN.UNIQUE.ID = Y.MSG.SHARE<AP,2>
+    END
+
+    Y.ID.PAR = Y.IN.UNIQUE.ID
+
+    RETURN
+*------------------------------------------------------------
+PROCESS:
+*DEBUG
+    IF Y.OFS.FUNCTION EQ 'R' THEN
+        CALL F.READ(FN.FT.MAP,Y.ID.OFS,R.FT.MAP,F.FT.MAP,ERR.FT.MAP)
+        Y.ID.FT.MAP = R.FT.MAP<WS.DATA.FT.NO.FT>
+        CALL F.READ(FN.FUNDS.TRF,Y.ID.FT.MAP,R.FUNDS.TRF,F.FUNDS.TRF,ERR.FUNDS.TRF)
+        Y.OUT = R.FUNDS.TRF<FT.CO.CODE>
+
+    END ELSE
+        CALL F.READ(FN.JRN.PAR,Y.ID.PAR,R.JRN.PAR,F.JRN.PAR,ERR)
+        Y.OUT = R.JRN.PAR<JOURNAL.PAR.DEFAULT.BR>
+    END
+
+    RETURN
+*------------------------------------------------------------
+END
+
+
+
+
+
+
+

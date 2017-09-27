@@ -1,0 +1,44 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE IDI.IN.GET.COMM.TYPE(Y.RET.VALUE)
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.IDIH.WS.DATA.FT.MAP
+    $INSERT I_IDIB.GEN.FT.MAP.DATA.COMMON
+    $INSERT I_F.IDIH.IN.FT.JOURNAL.PAR
+
+    Y.RET.VALUE = ''
+
+    FN.JRN.PAR = 'F.IDIH.IN.FT.JOURNAL.PAR'
+    F.JRN.PAR = ''
+    CALL OPF(FN.JRN.PAR,F.JRN.PAR)
+
+
+    CALL F.READ(FN.JRN.PAR,Y.IN.UNIQUE.ID,R.JRN.PAR,F.JRN.PAR,ERR)
+    Y.CR.COMMTYP = R.JRN.PAR<JOURNAL.PAR.CHRG.CODE.CR>
+    Y.DB.COMMTYP = R.JRN.PAR<JOURNAL.PAR.CHRG.CODE.DB>
+    IF Y.CR.COMMTYP NE '' THEN
+        Y.RET.VALUE = Y.CR.COMMTYP
+    END ELSE
+        Y.RET.VALUE = Y.DB.COMMTYP
+    END
+
+    CONVERT VM TO '' IN Y.RET.VALUE
+    CONVERT FM TO '' IN Y.RET.VALUE
+    CONVERT SM TO '' IN Y.RET.VALUE
+
+
+    RETURN
+
+END
+
+
+
+
+
+
+
+
+
+

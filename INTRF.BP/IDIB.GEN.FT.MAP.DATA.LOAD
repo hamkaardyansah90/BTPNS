@@ -1,0 +1,101 @@
+*-----------------------------------------------------------------------------
+* <Rating>-41</Rating>
+* 18:03:25 27 JUL 2016 * 16:48:10 27 JUL 2016 * 16:13:07 27 JUL 2016 * 15:43:01 27 JUL 2016 * 10:23:26 27 JUL 2016
+* AT240301D01/btpnsqua * AT240301D01/btpnsqua * AT240301D01/btpnsqua * AT240301D01/btpnsqua * AT240301D01/btpnsqua
+*-----------------------------------------------------------------------------
+    SUBROUTINE IDIB.GEN.FT.MAP.DATA.LOAD
+**ROUTINE TO LOAD GENERATE FT.MAP
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_IDIB.GEN.FT.MAP.DATA.COMMON
+    $INSERT I_F.DATES
+    $INSERT I_TSA.COMMON
+    $INSERT I_F.IDIH.WS.DATA.FT.MAP
+*** 20160615- MODIFIED ATILHM
+    $INSERT I_F.FILE.CONTROL
+    $INSERT I_GTS.COMMON
+
+**CREATED ATILHM
+**HISTORY**
+*20160615- MODIFIED ATILHM, modified flow process generate teksfile
+*DEBUG
+*----------------------------------
+*----------------------------------
+MAIN:
+*----------------------------------
+    GOSUB INIT
+
+    RETURN
+*----------------------------------
+******
+INIT:
+*******
+
+    FN.FT.MAP = 'F.IDIH.WS.DATA.FT.MAP'
+    F.FT.MAP = ''
+    CALL OPF(FN.FT.MAP,F.FT.MAP)
+
+    FN.FC = "F.FILE.CONTROL"
+    F.FC  = ""
+    CALL OPF(FN.FC, F.FC)
+
+    FN.OUTPUT = 'CHANNEL.REPORT.BP'
+    F.OUTPUT = ''
+
+    OPEN FN.OUTPUT TO F.OUTPUT ELSE
+        Y.CREATE.FOLDER = 'CREATE.FILE ':FN.OUTPUT:' TYPE=UD'
+        EXECUTE Y.CREATE.FOLDER
+
+        OPEN FN.OUTPUT TO F.OUTPUT ELSE
+
+        END
+
+    END
+    FN.REPORTATM.TEMP = 'F.IDIH.WS.DATA.FT.MAP.TEMP'
+    F.REPORTATM.TEMP = ''
+    CALL OPF(FN.REPORTATM.TEMP, F.REPORTATM.TEMP)
+
+*SEQ.NO = FMT(AGENT.NUMBER,"4'0'R")
+    Y.TODAY = R.DATES(EB.DAT.TODAY)
+    Y.FILE = "XReport_Reconcile_":Y.TODAY:"_ATM"
+*:SEQ.NO
+
+    Y.TITLE.OUT = Y.FILE
+
+    CONTROL.LIST = ''
+
+
+
+    RETURN
+*---------------------------------------------------
+END
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

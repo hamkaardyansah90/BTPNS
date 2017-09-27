@@ -1,0 +1,39 @@
+*-----------------------------------------------------------------------------
+* <Rating>-10</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE IDIB.GEN.CHG.ENQ.ATM.SELECT
+*-----------------------------------------------------------------------------
+* Multi thread routine for IDIB.GEN.CHG.ENQ.ATM
+* Created by Lutzfi Harri M
+* Date : 25 november 2015
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_IDIB.GEN.CHG.ENQ.ATM.COMMON
+    $INSERT I_F.IDIH.WS.DATA.FT.MAP
+
+    ATM.LIST = '' ; NO.OF.ATM = 0
+
+
+    SEL.ATM = 'SELECT ':FN.WS.DATA:' WITH FLG.CHG.ENQ EQ "YES"'
+    CALL EB.READLIST(SEL.ATM, ATM.LIST,'',NO.OF.ATM,'')
+
+    IF ATM.LIST THEN
+
+        CALL BATCH.BUILD.LIST('', ATM.LIST)
+    END
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+END
+
+
+
+
+
+
+
+
+
+

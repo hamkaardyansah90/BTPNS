@@ -1,0 +1,29 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+**SUBROUTINE TO SHOW ACCOUNT LIST IN CUSTOMER.ACCOUNT
+**CREATED ATIAGS(20150622)
+
+    SUBROUTINE IDIE.CONV.ENQ.ACCT.REG
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+    $INSERT I_F.CUSTOMER.ACCOUNT
+
+    FN.CUST.ACC = 'F.CUSTOMER.ACCOUNT'
+    F.CUST.ACC = ''
+    CALL OPF(FN.CUST.ACC,F.CUST.ACC)
+
+    Y.CUST.ACC.ID = O.DATA
+
+    CALL F.READ(FN.CUST.ACC,Y.CUST.ACC.ID,R.CUST.ACC,F.CUST.ACC,ERR.CUST.ACC)
+    Y.ACC.LIST = R.CUST.ACC
+    CONVERT FM TO '.' IN Y.ACC.LIST
+    O.DATA = Y.ACC.LIST
+
+    RETURN
+END
+
+
+

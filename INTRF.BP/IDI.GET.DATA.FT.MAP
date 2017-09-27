@@ -1,0 +1,35 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE IDI.GET.DATA.FT.MAP(Y.ID.RECORD,Y.APPLICATION.READ,R.APP)
+**ROUTINE TO READ DATA IDIH.WS.DATA.FT.MAP
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.IDIH.WS.DATA.FT.MAP
+    $INSERT I_IDI.GET.DATA.FT.MAP.COMMON
+*DEBUG
+    Y.NO.FT = ''
+    FN.APP = ''
+    F.APP = ''
+    R.APP = ''
+    Y.APPLICATION.READ = ''
+
+    FN.APP = 'F.IDIH.WS.DATA.FT.MAP'
+    F.APP = ''
+    CALL OPF(FN.APP,F.APP)
+
+    CALL F.READ(FN.APP,Y.ID.RECORD,R.APP,F.APP,ERR)
+
+
+    Y.APPLICATION.READ = 'IDIH.WS.DATA.FT.MAP'
+
+    RETURN
+
+END
+
+
+
+
+
+
+

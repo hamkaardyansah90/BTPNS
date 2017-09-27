@@ -1,0 +1,41 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE IDI.IN.GET.TRANS.TYP(Y.RET.VALUE)
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.FUNDS.TRANSFER
+    $INSERT I_F.IDIH.IN.FT.JOURNAL.PAR
+    $INSERT I_IDI.WS.INC.PRE.PROCESS.COMMON
+    $INSERT I_F.IDIH.WS.DATA.FT.MAP
+*DEBUG
+**CREATE ATI LHM(20150319)
+**ROUTINE TO GET TRANSACTION.TYPE IN FT
+
+    FN.JRN.PAR      = 'F.IDIH.IN.FT.JOURNAL.PAR'
+    F.JRN.PAR       = ''
+    CALL OPF(FN.JRN.PAR,F.JRN.PAR)
+
+    FINDSTR 'IN.UNIQUE.ID' IN Y.MSG.SHARE SETTING AP,VP,SP THEN
+        Y.IN.UNIQUE.ID = Y.MSG.SHARE<AP,2>
+    END
+
+    CALL F.READ(FN.JRN.PAR, Y.IN.UNIQUE.ID, R.JRN.PAR, F.JRN.PAR, ERR)
+    Y.RET.VALUE = R.JRN.PAR<JOURNAL.PAR.TRANSACTION.TYPE>
+
+
+    RETURN
+
+END
+
+
+
+
+
+
+
+
+
+
+

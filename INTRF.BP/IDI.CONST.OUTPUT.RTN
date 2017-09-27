@@ -1,0 +1,87 @@
+*-----------------------------------------------------------------------------
+* <Rating>-27</Rating>
+* 16:36:47 27 JUL 2016 * 16:36:38 27 JUL 2016 * 16:33:31 27 JUL 2016
+* AT240301D01/btpnsqua * AT240301D01/btpnsqua * AT240301D01/btpnsqua
+*-----------------------------------------------------------------------------
+*Create by Galuh Gigih P ; galuh.pranata@anabatic.com
+*date : march 2015
+*-----------------------------------------------------------------------------
+    SUBROUTINE IDI.CONST.OUTPUT.RTN(Y.ID.MAP,Y.ADDITIONAL.INFO,Y.RESPONSE)
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.IDIH.CONST.OUTPUT.MAPPING
+*$INSERT I_F.IDIH.WS.PARAM
+    $INSERT I_IDIB.GEN.FT.MAP.DATA.COMMON
+    $INSERT I_IDI.CONST.OUTPUT.RTN.COMMON
+    $INSERT I_F.STANDARD.SELECTION
+    $INSERT JBC.h
+    DEBUG
+    GOSUB INIT
+    GOSUB PROCESS
+
+    RETURN
+*-----------------------------------------------------------------------------
+INIT:
+*-----------------------------------------------------------------------------
+    FN.OUT.MAPP = 'F.IDIH.CONST.OUTPUT.MAPPING'
+    F.OUT.MAPP = ''
+    CALL OPF(FN.OUT.MAPP,F.OUT.MAPP)
+
+*FN.WS.PARAM = 'F.IDIH.WS.PARAM'
+*F.WS.PARAM = ''
+*CALL OPF(FN.WS.PARAM,F.WS.PARAM)
+
+    FN.SS = 'F.STANDARD.SELECTION'
+    F.SS = ''
+    CALL OPF(FN.SS,F.SS)
+
+*    CALL F.READ(FN.WS.PARAM,'SYSTEM',R.WS.PARAM,F.WS.PARAM,WS.PARAM.MAPP)
+*Y.OUT.IP = R.WS.PARAM<WS.PAR.OUT.IP>
+*Y.OUT.PORT = R.WS.PARAM<WS.PAR.OUT.PORT>
+
+    Y.SEP = @VM
+    Y.NEW.PROCESS = ''
+    Y.INT.TYPE = 'OUT'
+
+    CALL GET.STANDARD.SELECTION.DETS(APPLICATION,R.STANDARD.SELECTION)
+    CALL FIELD.NAMES.TO.NUMBERS("LOCAL.REF",R.STANDARD.SELECTION,Y.T24.FIELD.NO.REF,YAF,YAV,YAS,DATA.TYPE,ERR.MSG)
+
+    RETURN
+*-----------------------------------------------------------------------------
+PROCESS:
+*-----------------------------------------------------------------------------
+    CALL F.READ(FN.OUT.MAPP,Y.ID.MAP,R.OUT.MAPP,F.OUT.MAPP,ERR.OUT.MAPP)
+
+    Y.TYPE.OUTPUT = R.OUT.MAPP<CONST.OUT.TYPE.OUTPUT>
+    Y.INT.TYPE = 'OUT'
+    Y.WRITE = Y.ID.MAP:' - ':Y.TYPE.OUTPUT
+
+    CALL IDI.WRITE.LOG.INT(Y.INT.TYPE,"DEBUG",Y.TYPE.OUTPUT)
+
+    Y.ADDITIONAL.INFO.COM = Y.ADDITIONAL.INFO
+    Y.ID.MAP.COM = Y.ID.MAP
+
+*menentukan typeoutput , intinya setiap tipe output memiliki program masing2.
+*Saat ini hanya untuk yang TXT saja, yang WS sudah ada namun belum di kondisikan untuk ini .
+*ISO as soon as possible .
+
+    BEGIN CASE
+    CASE Y.TYPE.OUTPUT = 'WS'
+        CALL IDI.CONSTRUCT.WS(Y.OUTPUT)
+    CASE Y.TYPE.OUTPUT = 'TXT'
+        CALL IDI.CONSTRUCT.TXT(Y.OUTPUT)
+    CASE Y.TYPE.OUTPUT = 'ISO8583'
+        CALL IDI.CONSTRUCT.ISO(Y.OUTPUT)
+    END CASE
+
+    RETURN
+*-----------------------------------------------------------------------------
+END
+*-----------------------------------------------------------------------------
+
+
+
+
+
+

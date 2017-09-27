@@ -1,0 +1,68 @@
+*-----------------------------------------------------------------------------
+* <Rating>68</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE IDI.WRITE.LOG.INT(Y.INT.TYPE,Y.LOG.LEVEL,Y.MSG)
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.IDIH.INT.LOG.PARAM
+    $INSERT JBC.h
+
+    FN.LOG = "F.IDIH.INT.LOG.PARAM"
+    F.LOG = ""
+    CALL OPF(FN.LOG,F.LOG)
+
+*Y = @USERSTATS
+
+    CALL CACHE.READ(FN.LOG, 'SYSTEM', R.LOG, LOG.ERR)
+
+    Y.TYPE =  R.LOG<IN.LOG.INTERFACE.TYPE>
+    FIND Y.INT.TYPE IN Y.TYPE SETTING Ap,Vp,Sp THEN
+        Y.INT.POS = Vp
+        Y.LEVEL.PAR = FIELD((R.LOG<IN.LOG.LOG.LEVEL>),@VM,Y.INT.POS)
+    END
+
+    IF Y.LEVEL.PAR EQ 'OFF' THEN RETURN
+
+    Y.FLDR.IN = "INTERFACE.LOG"
+*Y.DATE = OCONV(DATE(), "D2")
+
+    Y.TIME.DATE = OCONV((DATE()),"D{n{4}}")
+
+    Y.YEAR = FIELD(Y.TIME.DATE,'{',3)
+    Y.MONTH = FIELD(Y.TIME.DATE,'{',1)
+    Y.DAY = FIELD(Y.TIME.DATE,'{',2)
+
+    Y.DATE = Y.YEAR:Y.MONTH:Y.DAY
+
+    IF Y.INT.TYPE EQ 'OUT' THEN
+        Y.FILE = Y.DATE:'.Interface.log.outgoing.txt'
+    END
+    ELSE
+        Y.FILE = Y.DATE:'.Interface.log.':FMT(@USERSTATS<1>,"R%4"):'.txt'
+    END
+
+    IF Y.LEVEL.PAR EQ 'FULL' OR Y.LEVEL.PAR EQ Y.LOG.LEVEL OR Y.LOG.LEVEL EQ 'INFO' THEN
+        OPENSEQ Y.FLDR.IN,Y.FILE TO F.OUTPUT
+        ELSE
+            Y.CREATE.FOLDER = 'CREATE.FILE ':Y.FLDR.IN:' TYPE=UD'
+            EXECUTE Y.CREATE.FOLDER
+        END
+        Y.DAY = TIMEDATE()
+        Y.TIME = Y.DAY[1,8]
+
+        Y.MESSAGE = Y.TIME:'-':Y.DATE:' - ':Y.INT.TYPE:" - ":Y.LEVEL.PAR:" - ":Y.MSG
+        WRITESEQ Y.MESSAGE APPEND TO F.OUTPUT ELSE
+            CRT " Unable to perform WRITESEQ : ": Y.MESSAGE
+         END
+
+        CLOSESEQ F.OUTPUT
+
+    END
+
+    RETURN
+END
+
+
+
+
