@@ -1,0 +1,56 @@
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ATI.BM.AUP.UP.EOD.SELECT
+*-----------------------------------------------------------------------------
+* Developer Name     : ATI Juan Felix
+* Development Date   : 20170124
+* Description        : Batch Routine Multi End Of Day Data Upload UP
+*-----------------------------------------------------------------------------
+* Modification History:-
+*-----------------------------------------------------------------------------
+* Date            Modified by                Description
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_TSA.COMMON
+    $INSERT I_F.ATI.TH.AUP.UP.DATA
+    $INSERT I_F.ATI.TL.AUP.UP.BATCH
+    $INSERT I_F.ATI.TT.AUP.UP.BATCH.CONCAT
+    $INSERT I_F.ATI.TT.AUP.UP.AO.CONCAT
+    $INSERT I_F.ATI.TT.AUP.UP.DATE.CONCAT
+    $INSERT I_ATI.BM.AUP.UP.EOD.COMMON
+
+*-----------------------------------------------------------------------------
+MAIN:
+*-----------------------------------------------------------------------------
+    GOSUB INIT
+    GOSUB PROCESS
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+INIT:
+*-----------------------------------------------------------------------------
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+PROCESS:
+*-----------------------------------------------------------------------------
+    SEL.CMD = "SELECT " : FN.ATI.TH.AUP.UP.DATA
+    CALL EB.READLIST(SEL.CMD, SEL.LIST, "", SEL.CNT, SEL.ERR)
+
+    CALL BATCH.BUILD.LIST("", SEL.LIST)
+
+    CLEARFILE F.ATI.TL.AUP.UP.BATCH
+    CLEARFILE F.ATI.TT.AUP.UP.BATCH.CONCAT
+    CLEARFILE F.ATI.TT.AUP.UP.AO.CONCAT
+
+    RETURN
+*-----------------------------------------------------------------------------
+END
+
+
+
+

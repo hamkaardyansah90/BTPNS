@@ -1,0 +1,73 @@
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ATI.BM.AUP.UP.CONV.TEXT.LOAD
+*-----------------------------------------------------------------------------
+* Developer Name     : ATI Juan Felix
+* Development Date   : 20170124
+* Description        : Batch Routine Upload GL convert textfile to table ATI.TH.AUP.UP.DATA
+*-----------------------------------------------------------------------------
+* Modification History:-
+*-----------------------------------------------------------------------------
+* Date            Modified by                Description
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_TSA.COMMON
+    $INSERT I_BATCH.FILES
+    $INSERT I_F.USER
+    $INSERT I_F.ACCOUNT
+    $INSERT I_F.ATI.TH.AUP.DATA
+    $INSERT I_F.ATI.TH.AUP.PARAM
+    $INSERT I_F.ATI.TH.AUP.UP.DATA
+    $INSERT I_F.ATI.TT.AUP.UP.AO.CONCAT
+    $INSERT I_ATI.BM.AUP.UP.CONV.TEXT.COMMON
+
+*-----------------------------------------------------------------------------
+MAIN:
+*-----------------------------------------------------------------------------
+    GOSUB INIT
+    GOSUB PROCESS
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+INIT:
+*-----------------------------------------------------------------------------
+    FN.ATI.TH.AUP.PARAM = "F.ATI.TH.AUP.PARAM"
+    CALL OPF(FN.ATI.TH.AUP.PARAM, F.ATI.TH.AUP.PARAM)
+
+    CALL F.READ(FN.ATI.TH.AUP.PARAM, "SYSTEM", R.ATI.TH.AUP.PARAM, F.ATI.TH.AUP.PARAM, ERR.ATI.TH.AUP.PARAM)
+    FN.FILE.DATA = "../bnk.run/" : R.ATI.TH.AUP.PARAM<AUP.PARAM.FOLDER.NAME>
+
+    OPEN FN.FILE.DATA TO F.FILE.DATA ELSE
+        DISPLAY "ERR.OPEN.INPUT.FILE=":FN.FILE.DATA
+    END
+
+    FN.ATI.TH.AUP.DATA = "F.ATI.TH.AUP.DATA"
+    CALL OPF(FN.ATI.TH.AUP.DATA, F.ATI.TH.AUP.DATA)
+
+    FN.ATI.TH.AUP.UP.DATA.NAU = "F.ATI.TH.AUP.UP.DATA$NAU"
+    CALL OPF(FN.ATI.TH.AUP.UP.DATA.NAU, F.ATI.TH.AUP.UP.DATA.NAU)
+
+    FN.ATI.TT.AUP.UP.AO.CONCAT = "F.ATI.TT.AUP.UP.AO.CONCAT"
+    CALL OPF(FN.ATI.TT.AUP.UP.AO.CONCAT, F.ATI.TT.AUP.UP.AO.CONCAT)
+
+    FN.ACCOUNT = "F.ACCOUNT"
+    CALL OPF(FN.ACCOUNT, F.ACCOUNT)
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+PROCESS:
+*-----------------------------------------------------------------------------
+
+    RETURN
+*-----------------------------------------------------------------------------
+END
+
+
+
+
+
+

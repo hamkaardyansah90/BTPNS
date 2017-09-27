@@ -1,0 +1,83 @@
+*-----------------------------------------------------------------------------
+* <Rating>-50</Rating>
+* 11:12:15 06 SEP 2016 * 15:02:45 05 SEP 2016 * 18:28:33 20 JUN 2016 * 10:50:23 17 JUN 2016 * 19:05:21 16 JUN 2016 * 11:54:28 07 JUL 2015 * 11:23:58 07 JUL 2015 * 11:15:47 07 JUL 2015 * 11:14:38 07 JUL 2015 * 10:48:36 07 JUL 2015 
+* CBS-APP1-JKT/t24sit * CBS-APP1-JKT/t24sit * WIN-KVUAVRB60BE/R14 * WIN-KVUAVRB60BE/R14 * WIN-KVUAVRB60BE/R14 * WIN-KVUAVRB60BE/R14 * WIN-KVUAVRB60BE/R14 * WIN-KVUAVRB60BE/R14 * WIN-KVUAVRB60BE/R14 * WIN-KVUAVRB60BE/R14 
+*-----------------------------------------------------------------------------
+    SUBROUTINE ATI.BM.EXT.REPORT.LOAD
+*-----------------------------------------------------------------------------
+* Developer Name     : Dwi K
+* Development Date   : 20150917
+* Description        : Extract Report
+*-----------------------------------------------------------------------------
+* Modification History:-
+*-----------------------------------------------------------------------------
+* Date               : 20160620
+* Modified by        : Dwi K
+* Description        : Add function to splitted data
+*-----------------------------------------------------------------------------
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.ATI.TH.EXT.REPORT
+    $INSERT I_ATI.BM.EXT.REPORT.COMMON
+    $INSERT I_F.DATES
+    $INSERT I_F.FILE.CONTROL
+
+*-----------------------------------------------------------------------------
+MAIN:
+*-----------------------------------------------------------------------------
+    GOSUB INIT
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+INIT:
+*-----------------------------------------------------------------------------
+    FN.ID.REP = 'F.ATI.TH.EXT.REPORT'
+    CALL OPF(FN.ID.REP, F.ID.REP)
+
+    FN.FC = 'F.FILE.CONTROL'
+    CALL OPF(FN.FC,F.FC)
+
+    Y.BATCH.DETAILS = BATCH.DETAILS<3,1>
+    Y.BATCH.CNT     = DCOUNT(Y.BATCH.DETAILS, SM)
+
+    FOR Y.LOOP = 1 TO Y.BATCH.CNT
+        Y.ID.EXT.REP = Y.BATCH.DETAILS<1,1,Y.LOOP>
+        GOSUB CREATE.TABLE.TEMP
+    NEXT Y.LOOP
+
+    RETURN
+*-----------------------------------------------------------------------------
+CREATE.TABLE.TEMP:
+*-----------------------------------------------------------------------------
+*---------------------------TABLE TEMP----------------------------------------
+    FN.EXT.TEMP = 'F.ATI.EXT.REP.':Y.ID.EXT.REP:'.TEMP'
+    OPEN FN.EXT.TEMP TO F.EXT.TEMP ELSE
+        READ R.FC FROM F.FC, 'JOB.LIST.1' THEN
+            WRITE R.FC TO F.FC, 'ATI.EXT.REP.':Y.ID.EXT.REP:'.TEMP'
+        END
+        CALL EBS.CREATE.FILE(FN.EXT.TEMP,'',ERROR.MSG)
+    END
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+END
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

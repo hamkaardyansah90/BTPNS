@@ -1,0 +1,137 @@
+*-----------------------------------------------------------------------------
+* <Rating>-37</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ATI.BM.AUP.UP.CONV.TEXT(Y.RECORD)
+*-----------------------------------------------------------------------------
+* Developer Name     : ATI Juan Felix
+* Development Date   : 20170124
+* Description        : Batch Routine Upload GL convert textfile to table ATI.TH.AUP.UP.DATA
+*-----------------------------------------------------------------------------
+* Modification History:-
+*-----------------------------------------------------------------------------
+* Date            Modified by                Description
+* 20170321        ATI Yudistia Adnan         Change format ID Transaction ATI.TH.AUP.UP.DATA
+* 20170522        ATI Yudistia Adnan         Change F.WRITE to WRITE when write to tabel ATI.TT.AUP.UP.AO.CONCAT
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_TSA.COMMON
+    $INSERT I_BATCH.FILES
+    $INSERT I_F.USER
+    $INSERT I_F.ACCOUNT
+    $INSERT I_F.ATI.TH.AUP.DATA
+    $INSERT I_F.ATI.TH.AUP.PARAM
+    $INSERT I_F.ATI.TH.AUP.UP.DATA
+    $INSERT I_F.ATI.TT.AUP.UP.AO.CONCAT
+    $INSERT I_ATI.BM.AUP.UP.CONV.TEXT.COMMON
+
+*-----------------------------------------------------------------------------
+MAIN:
+*-----------------------------------------------------------------------------
+    GOSUB INIT
+    GOSUB PROCESS
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+INIT:
+*-----------------------------------------------------------------------------
+    Y.AUP.ID = BATCH.DETAILS<3,1>
+
+    Y.DATE      = OCONV(DATE(),"D-")
+    Y.TIME      = TIMEDATE()
+    Y.DATE.TIME = Y.DATE[9,2]:Y.DATE[1,2]:Y.DATE[4,2]:Y.TIME[1,2]:Y.TIME[4,2]
+
+    R.ATI.TH.AUP.UP.DATA = ""
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+PROCESS:
+*-----------------------------------------------------------------------------
+*-Mapping Textfile -----------------------------------------------------------
+    Y.SIGN             = TRIM(FIELD(Y.RECORD, "|", 1), " ", "B")
+    Y.TRANSACTION.CODE = TRIM(FIELD(Y.RECORD, "|", 2), " ", "B")
+    Y.ACCOUNT.NUMBER   = TRIM(FIELD(Y.RECORD, "|", 3), " ", "B")
+    Y.PL.CATEGORY      = TRIM(FIELD(Y.RECORD, "|", 4), " ", "B")
+    Y.ACCOUNT.OFFICER  = TRIM(FIELD(Y.RECORD, "|", 5), " ", "B")
+    Y.CUSTOMER.ID      = TRIM(FIELD(Y.RECORD, "|", 6), " ", "B")
+    Y.PRODUCT.CATEGORY = TRIM(FIELD(Y.RECORD, "|", 7), " ", "B")
+    Y.AMOUNT           = TRIM(FIELD(Y.RECORD, "|", 8), " ", "B")
+    Y.CO.CODE          = TRIM(FIELD(Y.RECORD, "|", 9), " ", "B")
+    Y.NARRATIVE.LIST   = TRIM(FIELD(Y.RECORD, "|", 10), " ", "B")
+    Y.NO.SEQ           = TRIM(FIELD(Y.RECORD, "|", 11), " ", "B")
+
+*-Get Currency----------------------------------------------------------------
+    IF Y.ACCOUNT.NUMBER THEN
+        CALL F.READ(FN.ACCOUNT, Y.ACCOUNT.NUMBER, R.ACCOUNT, F.ACCOUNT, ERR.ACCOUNT)
+        Y.CURRENCY = R.ACCOUNT<AC.CURRENCY>
+    END
+    ELSE
+        Y.CURRENCY = LCCY
+    END
+
+*-Get Product Category----------------------------------------------------------
+    IF Y.PL.CATEGORY[1,1] EQ "5" THEN
+        IF NOT(Y.PRODUCT.CATEGORY) THEN
+            Y.PRODUCT.CATEGORY = "3333"
+        END
+    END ELSE
+        Y.PRODUCT.CATEGORY = ""
+    END
+
+    R.ATI.TH.AUP.UP.DATA<UP.DATA.SIGN>             = Y.SIGN
+    R.ATI.TH.AUP.UP.DATA<UP.DATA.TRANSACTION.CODE> = Y.TRANSACTION.CODE
+    R.ATI.TH.AUP.UP.DATA<UP.DATA.ACCOUNT.NUMBER>   = Y.ACCOUNT.NUMBER
+    R.ATI.TH.AUP.UP.DATA<UP.DATA.PL.CATEGORY>      = Y.PL.CATEGORY
+    R.ATI.TH.AUP.UP.DATA<UP.DATA.PRODUCT.CATEGORY> = Y.PRODUCT.CATEGORY
+    R.ATI.TH.AUP.UP.DATA<UP.DATA.CURRENCY>         = Y.CURRENCY
+    R.ATI.TH.AUP.UP.DATA<UP.DATA.ACCOUNT.OFFICER>  = Y.ACCOUNT.OFFICER
+    R.ATI.TH.AUP.UP.DATA<UP.DATA.CUSTOMER.ID>      = Y.CUSTOMER.ID
+    R.ATI.TH.AUP.UP.DATA<UP.DATA.AMOUNT>           = Y.AMOUNT * 1
+    R.ATI.TH.AUP.UP.DATA<UP.DATA.VALUE.DATE>       = TODAY
+
+    Y.NARRATIVE.CNT = DCOUNT(Y.NARRATIVE.LIST, "::")
+    FOR I = 1 TO Y.NARRATIVE.CNT
+        R.ATI.TH.AUP.UP.DATA<UP.DATA.NARRATIVE, I> = FIELD(Y.NARRATIVE.LIST, "::", I)
+    NEXT I
+
+    R.ATI.TH.AUP.UP.DATA<UP.DATA.NO.SEQ>  = Y.NO.SEQ
+    R.ATI.TH.AUP.UP.DATA<UP.DATA.AUP.ID>  = Y.AUP.ID
+    R.ATI.TH.AUP.UP.DATA<UP.DATA.CO.CODE> = Y.CO.CODE
+
+*-Write to table------------------------------------------------------------
+    CALL ALLOCATE.UNIQUE.TIME(Y.UNIQUE.TIME)
+    CONVERT "." TO "" IN Y.UNIQUE.TIME
+*<20170321_Yudistia Adnan
+    Y.AUP.UP.DATA.ID = "UP" : TODAY[7,2] : TODAY[5,2] : TODAY[3,2] : Y.UNIQUE.TIME
+*   Y.AUP.UP.DATA.ID = "UP" : TODAY[3,6] : Y.UNIQUE.TIME
+*>20170321_Yudistia Adnan
+
+    R.ATI.TH.AUP.UP.DATA<UP.DATA.RECORD.STATUS> = "INAU"
+    R.ATI.TH.AUP.UP.DATA<UP.DATA.CURR.NO>       = 1
+    R.ATI.TH.AUP.UP.DATA<UP.DATA.INPUTTER>      = TNO:"_":OPERATOR
+    R.ATI.TH.AUP.UP.DATA<UP.DATA.DATE.TIME>     = Y.DATE.TIME
+    R.ATI.TH.AUP.UP.DATA<UP.DATA.DEPT.CODE>     = R.USER<EB.USE.DEPARTMENT.CODE>
+
+    CALL F.WRITE(FN.ATI.TH.AUP.UP.DATA.NAU, Y.AUP.UP.DATA.ID, R.ATI.TH.AUP.UP.DATA)
+*-Write AO Concat-------------------------------------------------------------
+*   Y.ATI.TT.AUP.UP.AO.CONCAT.ID = Y.AUP.ID : "*AGENT*" : Y.ACCOUNT.OFFICER : "*" : AGENT.NUMBER
+    Y.ATI.TT.AUP.UP.AO.CONCAT.ID = Y.AUP.ID : "*AGENT*" : Y.ACCOUNT.OFFICER : "*" : Y.CO.CODE : "*" : AGENT.NUMBER
+    CALL F.READ(FN.ATI.TT.AUP.UP.AO.CONCAT, Y.ATI.TT.AUP.UP.AO.CONCAT.ID, R.ATI.TT.AUP.UP.AO.CONCAT, F.ATI.TT.AUP.UP.AO.CONCAT, ERR.ATI.TT.AUP.UP.AO.CONCAT)
+
+    R.ATI.TT.AUP.UP.AO.CONCAT<-1> = Y.AUP.UP.DATA.ID
+
+*<20170522_Yudistia Adnan
+*   CALL F.WRITE(FN.ATI.TT.AUP.UP.AO.CONCAT, Y.ATI.TT.AUP.UP.AO.CONCAT.ID, R.ATI.TT.AUP.UP.AO.CONCAT)
+
+    WRITE R.ATI.TT.AUP.UP.AO.CONCAT TO F.ATI.TT.AUP.UP.AO.CONCAT, Y.ATI.TT.AUP.UP.AO.CONCAT.ID
+*>20170522_Yudistia Adnan
+
+    RETURN
+*-----------------------------------------------------------------------------
+END
+
+
+
+

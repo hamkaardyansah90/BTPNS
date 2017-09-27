@@ -1,0 +1,97 @@
+*-----------------------------------------------------------------------------
+* <Rating>-50</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ATI.EN.BUILD.GL.UP(ENQ.DATA)
+*-----------------------------------------------------------------------------
+* Developer Name     : Yudistia Adnan
+* Development Date   : 20161006
+* Description        : Build routine for MM, only marketing user could access
+*-----------------------------------------------------------------------------
+* Modification History:-
+*-----------------------------------------------------------------------------
+* Date               :
+* Modified by        :
+* Description        :
+* No Log             :
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+    $INSERT I_F.USER
+    $INSERT I_F.DATES
+
+*-----------------------------------------------------------------------------
+MAIN:
+*-----------------------------------------------------------------------------
+
+    GOSUB INIT
+    GOSUB PROCESS
+
+    RETURN
+*-----------------------------------------------------------------------------
+INIT:
+*-----------------------------------------------------------------------------
+    Y.POS        = DCOUNT(ENQ.DATA<2>, @VM)
+    Y.DATE       = OCONV(DATE(),"D-")
+    Y.TODAY.DATE = Y.DATE[9,2] : Y.DATE[1,2] : Y.DATE[4,2]
+    Y.TODAY = TODAY
+
+    RETURN
+*-----------------------------------------------------------------------------
+PROCESS:
+*-----------------------------------------------------------------------------
+    FIND "DATE.TIME" IN ENQ.DATA<2> SETTING Y.AF, Y.AV THEN
+        Y.OPERAN = ENQ.DATA<3, Y.AV>
+        Y.VALUE  = ENQ.DATA<4, Y.AV>
+
+        IF FIELD(Y.VALUE, " ", 1) EQ "TODAY" THEN
+            Y.VALUE.1 = Y.TODAY.DATE
+        END ELSE
+            Y.VALUE.1 = FIELD(Y.VALUE, " ", 1)[3,6]
+        END
+
+        IF Y.OPERAN EQ "RG" THEN
+            IF FIELD(Y.VALUE, " ", 2) EQ "!TODAY" THEN
+                Y.VALUE.2 = Y.TODAY.DATE
+            END ELSE
+                Y.VALUE.2 = FIELD(Y.VALUE, " ", 2)[3,6]
+            END
+
+            ENQ.DATA<4, Y.AV> = Y.VALUE.1 : "0000 " : Y.VALUE.2 : "5959"
+        END ELSE
+            ENQ.DATA<3, Y.AV> = "LK"
+            ENQ.DATA<4, Y.AV> = Y.VALUE.1 : "..."
+        END
+    END
+
+    RETURN
+*-----------------------------------------------------------------------------
+END
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

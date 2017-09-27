@@ -1,0 +1,111 @@
+*-----------------------------------------------------------------------------
+* <Rating>-57</Rating>
+* 15:02:45 05 SEP 2016 * 16:18:19 02 AUG 2016 * 16:17:14 02 AUG 2016 * 13:22:32 28 JUL 2016 * 13:15:47 28 JUL 2016 * 16:35:20 27 JUL 2016 * 16:28:07 27 JUL 2016 * 10:50:37 26 JUL 2016 * 10:45:06 26 JUL 2016 * 10:31:59 26 JUL 2016 
+* CBS-APP1-JKT/t24sit * WIN-KVUAVRB60BE/R14 * WIN-KVUAVRB60BE/R14 * WIN-KVUAVRB60BE/R14 * WIN-KVUAVRB60BE/R14 * WIN-KVUAVRB60BE/R14 * WIN-KVUAVRB60BE/R14 * WIN-KVUAVRB60BE/R14 * WIN-KVUAVRB60BE/R14 * WIN-KVUAVRB60BE/R14 
+*-----------------------------------------------------------------------------
+    SUBROUTINE ATI.BS.EXT.REP.CONCATE
+*-----------------------------------------------------------------------------
+* Developer Name     : Dwi K
+* Development Date   : 20160728
+* Description        : Routine for create file concate
+*-----------------------------------------------------------------------------
+* Modification History:-
+*-----------------------------------------------------------------------------
+* Date               :
+* Modified by        :
+* Description        :
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.ATI.TH.EXT.REPORT
+    $INSERT I_BATCH.FILES
+
+*-----------------------------------------------------------------------------
+MAIN:
+*-----------------------------------------------------------------------------
+    GOSUB INIT
+    GOSUB PROCESS
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+INIT:
+*-----------------------------------------------------------------------------
+    FN.EXT.REP = 'F.ATI.TH.EXT.REPORT'
+    F.EXT.REP  = ''
+    CALL OPF(FN.EXT.REP,F.EXT.REP)
+
+    FN.FILE.EXT = 'F.ATI.TT.FILE.EXT.REPORT'
+    F.FILE.EXT  = ''
+    CALL OPF(FN.FILE.EXT,F.FILE.EXT)
+
+    Y.BATCH.DETAILS = BATCH.DETAILS<3,1>
+    Y.BATCH.CNT     = DCOUNT(Y.BATCH.DETAILS, SM)
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+PROCESS:
+*-----------------------------------------------------------------------------
+    Y.BATCH.MAPPING = Y.BATCH.CNT
+    Y.CONCATE.REC   = ''
+
+    FOR Y.LOOP = 1 TO Y.BATCH.MAPPING
+        Y.ID.EXT.REP = Y.BATCH.DETAILS<1,1,Y.LOOP>
+        Y.TOTAL.REC  = 0
+        Y.SUMMARY    = ''
+        GOSUB CHECK.FILE
+    NEXT Y.LOOP
+
+*    CALL F.READ(FN.FOLDER,Y.FILENAME,R.FILE.SUM,F.FOLDER,FILE.SUM.ERR)
+*    Y.SUMMARY  = TODAY:';':Y.BATCH.DETAILS<1,1,Y.BATCH.CNT>:';':Y.TOTAL.TRANSACTION:';':'T24'
+*    R.FILE.SUM = Y.SUMMARY
+*    CALL F.WRITE(FN.FOLDER,Y.FILENAME,R.FILE.SUM)
+
+    CALL F.READ(FN.FOLDER,Y.FILENAME.CONCATE,R.FILE.CONCATE,F.FOLDER,FILE.SUM.ERR)
+    R.FILE.CONCATE = Y.CONCATE.REC
+    CALL F.WRITE(FN.FOLDER,Y.FILENAME.CONCATE,R.FILE.CONCATE)
+
+    RETURN
+*-----------------------------------------------------------------------------
+CHECK.FILE:
+*-----------------------------------------------------------------------------
+    CALL F.READ(FN.EXT.REP,Y.ID.EXT.REP,R.EXT.REP,F.EXT.REP,EXT.REP.ERR)
+    Y.FOLDER = R.EXT.REP<EXT.REP.OUTPUT.DIR>
+
+    FN.FOLDER = Y.FOLDER
+    F.FOLDER  = ''
+    CALL OPF(FN.FOLDER,F.FOLDER)
+
+*    Y.FILENAME         = TODAY:'_':FIELD(BATCH.INFO<1>,'/',2):'_SUMMARY_TRANSACTION'
+    Y.FILENAME.CONCATE = TODAY:'_':FIELD(BATCH.INFO<1>,'/',2):'_CONCATE'
+
+*    IF Y.LOOP EQ 1 THEN
+*        DELETE F.FOLDER,Y.FILENAME
+*    END
+
+    IF Y.LOOP EQ 1 THEN
+        DELETE F.FOLDER,Y.FILENAME.CONCATE
+    END
+
+    CALL F.READ(FN.FILE.EXT,Y.ID.EXT.REP,R.FILE.EXT,F.FILE.EXT,FILE.EXT.ERR)
+    Y.CNT.FILE = DCOUNT(R.FILE.EXT,FM)
+
+    FOR Y.LOOP2 = 1 TO Y.CNT.FILE
+        Y.CURRENT.FILE = R.FILE.EXT<Y.LOOP2>
+        CALL F.READ(FN.FOLDER,Y.CURRENT.FILE,R.FOLDER,F.FOLDER,FOLDER.ERR)
+        Y.COUNT.REC       = DCOUNT(R.FOLDER,FM)
+        Y.TOTAL.REC      += Y.COUNT.REC
+        Y.CONCATE.REC<-1> = R.FOLDER
+    NEXT Y.LOOP2
+
+    Y.TOTAL.TRANSACTION += Y.TOTAL.REC
+
+    RETURN
+*-----------------------------------------------------------------------------
+END
+
+
+
+
+

@@ -1,0 +1,57 @@
+*-----------------------------------------------------------------------------
+* <Rating>-50</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ATI.BM.AUP.UP.PURGE.SELECT
+*-----------------------------------------------------------------------------
+* Developer Name     : ATI Juan Felix
+* Development Date   : 20170124
+* Description        : Batch Routine Multi for Purge Data Upload UP
+*-----------------------------------------------------------------------------
+* Modification History:-
+*-----------------------------------------------------------------------------
+* Date            Modified by                Description
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.ATI.TH.AUP.UP.DATA
+    $INSERT I_F.ATI.TT.AUP.UP.DATE.CONCAT
+    $INSERT I_F.ATI.TH.AUP.PARAM
+    $INSERT I_ATI.BM.AUP.UP.PURGE.COMMON
+
+*-----------------------------------------------------------------------------
+MAIN:
+*-----------------------------------------------------------------------------
+    GOSUB INIT
+    GOSUB PROCESS
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+INIT:
+*-----------------------------------------------------------------------------
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+PROCESS:
+*-----------------------------------------------------------------------------
+    CALL F.READ(FN.ATI.TH.AUP.PARAM, "SYSTEM", R.ATI.TH.AUP.PARAM, F.ATI.TH.AUP.PARAM, ERR.ATI.TH.AUP.PARAM)
+
+    IF R.ATI.TH.AUP.PARAM<AUP.PARAM.DAYS.PURGE.HIS> THEN
+        Y.DATE.PURGE.HIS = TODAY
+        Y.DAYS.PURGE.HIS = "-" : R.ATI.TH.AUP.PARAM<AUP.PARAM.DAYS.PURGE.HIS> : "C"
+
+        CALL CDT("", Y.DATE.PURGE.HIS, Y.DAYS.PURGE.HIS)
+
+        SEL.CMD = "SELECT " : FN.ATI.TT.AUP.UP.DATE.CONCAT : " WITH @ID LE " : Y.DATE.PURGE.HIS : "..."
+        CALL EB.READLIST(SEL.CMD, SEL.LIST, "", SEL.CNT, SEL.ERR)
+
+        CALL BATCH.BUILD.LIST("", SEL.LIST)
+    END
+
+    RETURN
+*-----------------------------------------------------------------------------
+END
+
+
+

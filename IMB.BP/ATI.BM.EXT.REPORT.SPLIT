@@ -1,0 +1,214 @@
+*-----------------------------------------------------------------------------
+* <Rating>-80</Rating>
+* 11:51:33 21 SEP 2016 
+* CBS-APP1-JKT/t24sit 
+*-----------------------------------------------------------------------------
+    SUBROUTINE ATI.BM.EXT.REPORT.SPLIT(Y.REC)
+*-----------------------------------------------------------------------------
+* Developer Name    : YEM
+* Development Date  : 20160908
+* Description       : Extract Report Breakdown Record Multivalue
+*-----------------------------------------------------------------------------
+* Modification History:-
+*-----------------------------------------------------------------------------
+* Date               : 20160908
+* Modified by        : Fatkhur Rohman
+* Description        : Integrating to BTPNS DTUR Summary
+*-----------------------------------------------------------------------------
+
+    $INSERT I_EQUATE
+    $INSERT I_COMMON
+    $INSERT I_BATCH.FILES
+    $INSERT I_TSA.COMMON
+    $INSERT I_F.ATI.TH.EXT.REPORT
+    $INSERT I_F.DATES
+    $INSERT I_ATI.BM.EXT.REPORT.SPLIT.COMMON
+
+*-----------------------------------------------------------------------------
+MAIN:
+*-----------------------------------------------------------------------------
+    GOSUB INIT
+    GOSUB PROCESS
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+INIT:
+*-----------------------------------------------------------------------------
+    Y.ID.EXT.REP = CONTROL.LIST<1,1>
+    GOSUB GET.DATA.EXT.REP
+
+    FN.EXT.TEMP  = 'F.ATI.EXT.REP.':Y.ID.EXT.REP:'.BDOWN.TEMP'
+    F.EXT.TEMP   = ''
+    CALL OPF(FN.EXT.TEMP,F.EXT.TEMP)
+
+    Y.OUTPUT.REC = ""
+
+    RETURN
+*-----------------------------------------------------------------------------
+GET.DATA.EXT.REP:
+*-----------------------------------------------------------------------------
+    CALL F.READ(FN.ID.REP,Y.ID.EXT.REP,R.ID.REP,F.ID.REP,REP.ERR)
+
+    Y.SPLIT.FILE     = R.ID.REP<EXT.REP.SPLIT.FILE>
+    Y.SEP.FM         = R.ID.REP<EXT.REP.SEPARATOR.FM>
+    Y.SEP.VM         = R.ID.REP<EXT.REP.SEPARATOR.VM>
+    Y.SEP.SM         = R.ID.REP<EXT.REP.SEPARATOR.SM>
+
+    Y.BDOWN.COLUMN   = R.ID.REP<EXT.REP.LOCAL.REF, Y.BREAKDOWN.COL.POS>
+    Y.BDOWN.SEP      = R.ID.REP<EXT.REP.LOCAL.REF, Y.BREAKDOWN.SEP.POS>
+    Y.BDOWN.ASSOC.ORI= R.ID.REP<EXT.REP.LOCAL.REF, Y.BREAKDOWN.ASSC.POS>
+
+    Y.BDOWN.ASSOC    = Y.BDOWN.ASSOC.ORI
+
+    CONVERT SM TO VM IN Y.BDOWN.ASSOC
+
+    Y.CNT.ASSOC   = DCOUNT(Y.BDOWN.ASSOC,@VM)
+    Y.START.ASSOC = Y.BDOWN.ASSOC<1,1>
+    Y.START.VM    = Y.START.ASSOC
+    Y.START.SM    = Y.BDOWN.COLUMN
+
+    IF Y.SPLIT.FILE EQ 'YES' THEN
+        Y.SPLIT.MAX.REC = R.ID.REP<EXT.REP.SPLIT.MAX.REC>
+    END ELSE
+        Y.SPLIT.MAX.REC = 500
+    END
+
+    RETURN
+*-----------------------------------------------------------------------------
+PROCESS:
+*-----------------------------------------------------------------------------
+    Y.FLD = ""
+    Y.CNT.FLD = DCOUNT(Y.REC,Y.SEP.FM)
+    FOR Y.START.ORI = 1 TO Y.CNT.FLD
+        Y.FLD<1,Y.START.ORI> = Y.START.ORI
+    NEXT Y.START.ORI
+
+    LOCATE Y.START.ASSOC IN Y.FLD<1,1> SETTING POSS.VM THEN
+        Y.FLD.START = FIELD(Y.REC, Y.SEP.FM, 1, POSS.VM-1)
+        Y.FLD.END   = FIELD(Y.REC, Y.SEP.FM, Y.BDOWN.ASSOC<1,Y.CNT.ASSOC>+1, DCOUNT(Y.FLD,@VM))
+        Y.FIELD.VM  = FIELD(Y.REC, Y.SEP.FM, POSS.VM, 1)
+    END
+
+    LOCATE Y.BDOWN.COLUMN IN Y.FLD<1,1> SETTING POSS.VM THEN
+        Y.FIELD.SM = FIELD(Y.REC, Y.SEP.FM, POSS.VM, 1)
+    END
+
+    IF Y.BDOWN.SEP EQ "VM" THEN
+*loop associate field to get no.of.vm
+*<yendri 16 sept 2016
+        Y.CEK.VM = DCOUNT(Y.FIELD.SM,Y.SEP.VM)
+        FOR Y.I = 1 TO Y.CNT.ASSOC
+            Y.ASSOC.LOOP = FIELD(Y.REC, Y.SEP.FM, Y.BDOWN.ASSOC<1,Y.I>, 1)
+            Y.CEK.VM     = DCOUNT(Y.ASSOC.LOOP,Y.SEP.VM)
+            IF Y.CEK.VM GE 1 THEN
+                Y.I = Y.CNT.ASSOC
+            END
+        NEXT Y.I
+*>
+        Y.CEK.SM = Y.CEK.VM
+*field breakdown blank
+        IF Y.CEK.VM EQ 0 THEN
+            Y.OUTPUT.REC<-1> = Y.REC
+            GOSUB WRITE.TEMP
+        END
+    END ELSE
+        Y.CEK.VM = DCOUNT(Y.FIELD.VM,Y.SEP.VM)
+        Y.CEK.SM = DCOUNT(Y.FIELD.SM,Y.SEP.SM)
+
+*loop associate field to get no.of.vm
+*<yendri 16 sept 2016
+        FOR Y.I = 1 TO Y.CNT.ASSOC
+            Y.ASSOC.LOOP = FIELD(Y.REC, Y.SEP.FM, Y.BDOWN.ASSOC<1,Y.I>, 1)
+            Y.CEK.VM     = DCOUNT(Y.ASSOC.LOOP,Y.SEP.VM)
+            IF Y.CEK.VM GE 1 THEN
+                Y.I = Y.CNT.ASSOC
+            END
+        NEXT Y.I
+*>
+*if VM blank and SM available, looping based on SM
+        IF Y.CEK.VM LT 1 AND Y.CEK.SM GT 0 THEN
+            Y.CEK.VM = 1
+        END ELSE
+* if VM and SM blank
+            IF Y.CEK.VM LT 1 AND Y.CEK.SM LT 1 THEN
+                Y.OUTPUT.REC<-1> = Y.REC
+                GOSUB WRITE.TEMP
+            END
+        END
+    END
+
+    FOR Y.VM = 1 TO Y.CEK.VM
+        IF Y.BDOWN.SEP EQ "VM" THEN
+            Y.OUT.NEW  = Y.FLD.START
+            FOR Y.I = 1 TO Y.CNT.ASSOC
+                Y.OUT.NEW   := Y.SEP.FM
+                Y.ASSOC.LOOP = FIELD(Y.REC, Y.SEP.FM, Y.BDOWN.ASSOC<1,Y.I>, 1)
+                Y.OUT.NEW   := FIELD(Y.ASSOC.LOOP, Y.SEP.VM, Y.VM, 1)
+            NEXT Y.I
+*if not blank, add part end to output
+            IF Y.FLD.END NE "" THEN
+                Y.OUT.NEW   := Y.SEP.FM:Y.FLD.END
+            END
+*
+            Y.OUTPUT.REC<-1> = Y.OUT.NEW
+            GOSUB WRITE.TEMP
+        END ELSE
+            GOSUB PROCESS.SM
+        END
+    NEXT Y.VM
+
+    RETURN
+*-----------------------------------------------------------------------------
+PROCESS.SM:
+*-----------------------------------------------------------------------------
+    Y.CEK.SM = DCOUNT(FIELD(Y.FIELD.SM, Y.SEP.VM, Y.VM, 1),Y.SEP.SM)
+    FOR Y.SM = 1 TO Y.CEK.SM
+        Y.OUT.NEW = Y.FLD.START
+        FOR Y.I = 1 TO Y.CNT.ASSOC
+            Y.OUT.NEW   := Y.SEP.FM
+            Y.ASSOC.LOOP = FIELD(Y.REC, Y.SEP.FM, Y.BDOWN.ASSOC<1,Y.I>, 1)
+            Y.FLD.LOOP   = FIELD(Y.ASSOC.LOOP, Y.SEP.VM, Y.VM)
+            Y.CEK.FLD.SM = DCOUNT(Y.FLD.LOOP,Y.SEP.SM)
+            IF Y.CEK.FLD.SM EQ 1 THEN
+*               Y.OUT.NEW := FIELD(Y.FLD.LOOP,Y.SEP.VM,Y.VM,1)
+                Y.OUT.NEW := Y.FLD.LOOP
+            END ELSE
+                Y.OUT.NEW := FIELD(Y.FLD.LOOP, Y.SEP.SM, Y.SM, 1)
+            END
+        NEXT Y.I
+*if not blank, add part end to output
+        IF Y.FLD.END NE "" THEN
+            Y.OUT.NEW :  = Y.SEP.FM:Y.FLD.END
+        END
+*
+        Y.OUTPUT.REC<-1> = Y.OUT.NEW
+        GOSUB WRITE.TEMP
+    NEXT Y.SM
+
+    RETURN
+*-----------------------------------------------------------------------------
+WRITE.TEMP:
+*-----------------------------------------------------------------------------
+    CALL F.READ(FN.EXT.TEMP, AGENT.NUMBER, R.EXT.TEMP, F.EXT.TEMP, EXT.TEMP.ERR)
+    R.EXT.TEMP<-1> = Y.OUTPUT.REC
+    CALL F.WRITE(FN.EXT.TEMP, AGENT.NUMBER, R.EXT.TEMP)
+
+    Y.REC.CNT = DCOUNT(R.EXT.TEMP, FM)
+
+    IF Y.REC.CNT GE Y.SPLIT.MAX.REC THEN
+        CALL ALLOCATE.UNIQUE.TIME(Y.UNIQUE.TIME)
+        Y.ID.NEW = AGENT.NUMBER:"-":Y.UNIQUE.TIME
+
+        CALL F.WRITE(FN.EXT.TEMP, Y.ID.NEW, R.EXT.TEMP)
+        CALL F.DELETE(FN.EXT.TEMP, AGENT.NUMBER)
+    END
+
+    Y.OUTPUT.REC = ""
+
+    RETURN
+*-----------------------------------------------------------------------------
+END
+
+
+

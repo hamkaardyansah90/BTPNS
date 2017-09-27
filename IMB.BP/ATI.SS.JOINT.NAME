@@ -1,0 +1,60 @@
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ATI.SS.JOINT.NAME(OUT.DATA, ATI.JNAME, ACCT.TITLE)
+*-----------------------------------------------------------------------------
+* Developer Name     : ATI Mauizah Hasanah
+* Development Date   : 30 January 2017
+* Description        : Routine SS Account
+*-----------------------------------------------------------------------------
+* Modification History:-
+*-----------------------------------------------------------------------------
+* Date               : 31 May 2017
+* Modified by        : ATI-Yudistia Adnan Putri
+* Description        : Change crop per space
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.ACCOUNT
+*-----------------------------------------------------------------------------
+MAIN:
+*-----------------------------------------------------------------------------
+    GOSUB INIT
+    GOSUB PROCESS
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+INIT:
+*-----------------------------------------------------------------------------
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+PROCESS:
+*-----------------------------------------------------------------------------
+
+    IF ATI.JNAME NE "" THEN
+        Y.ATI.JOINT.NAME = ATI.JNAME
+    END ELSE
+        Y.ATI.JOINT.NAME = ACCT.TITLE
+    END
+
+    IF Y.ATI.JOINT.NAME THEN
+        CONVERT SM TO " " IN Y.ATI.JOINT.NAME
+
+        Y.ROW.DATA = FMT(Y.ATI.JOINT.NAME, '65T')
+
+        CONVERT @TM TO FM IN Y.ROW.DATA
+        Y.COMB.JOINT.NAME = Y.ROW.DATA
+
+        CONVERT FM TO SM IN Y.COMB.JOINT.NAME
+        OUT.DATA = Y.COMB.JOINT.NAME
+    END
+
+    RETURN
+*-----------------------------------------------------------------------------
+END
+
+
+

@@ -1,0 +1,63 @@
+*-----------------------------------------------------------------------------
+* <Rating>-50</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ATI.CR.JOINT.NAME
+*-----------------------------------------------------------------------------
+* Developer Name     : ATI Mauizah Hasanah
+* Development Date   : 20170131
+* Description        : Routine for defaulting field joint debit & credit transaction TT
+*-----------------------------------------------------------------------------
+* Modification History:-
+*-----------------------------------------------------------------------------
+* Date               :
+* Modified by        :
+* Description        :
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.ACCOUNT
+    $INSERT I_F.TELLER
+*-----------------------------------------------------------------------------
+MAIN:
+*-----------------------------------------------------------------------------
+    GOSUB INIT
+    GOSUB PROCESS
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+INIT:
+*-----------------------------------------------------------------------------
+
+    FN.ACCOUNT  = 'F.ACCOUNT'
+    F.ACCOUNT   = ''
+    CALL OPF(FN.ACCOUNT, F.ACCOUNT)
+
+    Y.APP      = 'TELLER' :FM: 'ACCOUNT'
+    Y.FLD.NAME = 'ATI.JNAME.2' :FM: 'ATI.JOINT.NAME'
+    Y.POS      = ''
+    CALL MULTI.GET.LOC.REF(Y.APP,Y.FLD.NAME,Y.POS)
+    Y.TT.ATI.JNAME.2.POS    = Y.POS<1,1>
+    Y.AC.ATI.JOINT.NAME.POS = Y.POS<2,1>
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+PROCESS:
+*-----------------------------------------------------------------------------
+
+    Y.ID.AC = R.NEW(TT.TE.ACCOUNT.2)
+    CALL F.READ(FN.ACCOUNT, Y.ID.AC, R.ACCOUNT, F.ACCOUNT, ACCT.ERR)
+    Y.ATI.JOINT.NAME  = R.ACCOUNT<AC.LOCAL.REF, Y.AC.ATI.JOINT.NAME.POS>
+    Y.ACCOUNT.TITLE.1 = R.ACCOUNT<AC.ACCOUNT.TITLE.1>
+
+    IF NUM(Y.ID.AC[1,3]) THEN
+        R.NEW(TT.TE.LOCAL.REF)<1,Y.TT.ATI.JNAME.2.POS> = Y.ATI.JOINT.NAME
+    END ELSE
+        R.NEW(TT.TE.LOCAL.REF)<1,Y.TT.ATI.JNAME.2.POS> = Y.ACCOUNT.TITLE.1
+    END
+
+    RETURN
+*-----------------------------------------------------------------------------
+END
+

@@ -1,0 +1,409 @@
+*-----------------------------------------------------------------------------
+* <Rating>583</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ATI.TH.AUP.DATA.VALIDATE
+*-----------------------------------------------------------------------------
+* Developer Name     : ATI Juan Felix
+* Development Date   : 20170119
+* Description        : Check file available, check duplicate file and put info file, Validation textfile
+*-----------------------------------------------------------------------------
+* Modification History:-
+*-----------------------------------------------------------------------------
+* Date            Modified by                Description
+* 20170829        ATI Yudistia Adnan         Add validatin for amount format
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_GTS.COMMON
+    $INSERT I_F.ATI.TH.AUP.DATA
+    $INSERT I_F.ATI.TH.AUP.PARAM
+    $INSERT I_F.COMPANY
+    $INSERT I_F.ATI.TH.AUP.MSG.ERR.DATA
+
+*-----------------------------------------------------------------------------
+MAIN:
+*-----------------------------------------------------------------------------
+    Y.STATUS = R.NEW(AUP.DATA.STATUS)
+
+    IF (V$FUNCTION EQ "I") AND (Y.STATUS EQ "INPUT") THEN
+        GOSUB INIT
+        GOSUB PROCESS
+    END
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+INIT:
+*-----------------------------------------------------------------------------
+    FN.ATI.TH.AUP.PARAM = "F.ATI.TH.AUP.PARAM"
+    CALL OPF(FN.ATI.TH.AUP.PARAM, F.ATI.TH.AUP.PARAM)
+
+    FN.ATI.TH.AUP.DATA = "F.ATI.TH.AUP.DATA"
+    CALL OPF(FN.ATI.TH.AUP.DATA, F.ATI.TH.AUP.DATA)
+
+    FN.ATI.TH.AUP.MSG.ERR.DATA = "F.ATI.TH.AUP.MSG.ERR.DATA"
+    CALL OPF(FN.ATI.TH.AUP.MSG.ERR.DATA, F.ATI.TH.AUP.MSG.ERR.DATA)
+
+    CALL F.READ(FN.ATI.TH.AUP.PARAM, "SYSTEM", R.ATI.TH.AUP.PARAM, F.ATI.TH.AUP.PARAM, ERR.ATI.TH.AUP.PARAM)
+    Y.FOLDER.NAME = R.ATI.TH.AUP.PARAM<AUP.PARAM.FOLDER.NAME>
+
+    FN.FOLDER = "../bnk.run/" : Y.FOLDER.NAME
+    OPEN FN.FOLDER TO F.FOLDER ELSE
+        DISPLAY "ERR.OPEN.INPUT.FILE = " : FN.FOLDER
+
+        GOTO PROGRAM.ABORT
+    END
+
+    FN.COM = "F.COMPANY"
+    CALL OPF(FN.COM, F.COM)
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+PROCESS:
+*-----------------------------------------------------------------------------
+    GOSUB RESET.VAR
+
+    Y.FILE.NAME = R.NEW(AUP.DATA.FILE.NAME)
+
+    CALL F.READ(FN.FOLDER, Y.FILE.NAME, R.FOLDER, F.FOLDER, FOLDER.ERR)
+
+*-Check file exsist-----------------------------------------------------------
+    IF NOT(R.FOLDER) THEN
+        AF    = AUP.DATA.FILE.NAME
+        ETEXT = "Texfile " : Y.FILE.NAME : " tidak ditemukan"
+        CALL STORE.END.ERROR
+
+        GOTO PROGRAM.ABORT
+    END
+    ELSE
+*-Check upload duplicate file-------------------------------------------------
+        SEL.CMD = "SELECT " : FN.ATI.TH.AUP.DATA : " WITH FILE.NAME EQ " : Y.FILE.NAME : " AND STATUS NE REJECT"
+        CALL EB.READLIST(SEL.CMD, SEL.LIST, "", SEL.CNT, SEL.ERR)
+
+        IF SEL.CNT THEN
+            AF    = AUP.DATA.FILE.NAME
+            ETEXT = "Texfile " : Y.FILE.NAME : " sudah pernah diupload"
+            CALL STORE.END.ERROR
+
+            GOTO PROGRAM.ABORT
+        END
+        ELSE
+            Y.RECORD.CNT = DCOUNT(R.FOLDER, @FM)
+
+*-Check special char----------------------------------------------------------
+            Y.CHAR.ERR.FLG = ""
+            IF OFS$OPERATION NE "VALIDATE" THEN
+                GOSUB CHECK.TEXTFILE.CHARS
+            END
+
+            IF Y.ERROR.CHARS.LIST THEN
+                Y.ERROR.MSG.LIST = Y.ERROR.CHARS.LIST
+                GOSUB WRITE.ERR.MESSAGES
+
+                AF    = AUP.DATA.FILE.NAME
+                ETEXT = "Error textfile"
+                CALL STORE.END.ERROR
+
+                OFS$BROWSER.MESSAGES = Y.ERROR.CHARS.LIST
+
+                GOTO PROGRAM.ABORT
+            END
+            ELSE
+                GOSUB PROCESS.DATA
+                GOSUB VALUE.FIELD
+            END
+        END
+    END
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+CHECK.TEXTFILE.CHARS:
+*-----------------------------------------------------------------------------
+    Y.ERROR.CHARS.LIST = ""
+
+    FOR I = 1 TO Y.RECORD.CNT
+        Y.ORIG.RECD    = R.FOLDER<I>
+        Y.CONV.RECD    = UTF8(Y.ORIG.RECD)
+
+        IF Y.ORIG.RECD NE Y.CONV.RECD THEN
+            Y.ERROR.CHARS.LIST<-1> = "Baris ke " : I : ", Terdapat spesial karakter pada textfile"
+        END
+        GOSUB CHECK.AMOUNT
+    NEXT I
+
+    RETURN
+*-----------------------------------------------------------------------------
+CHECK.AMOUNT:
+*-----------------------------------------------------------------------------
+*/20170829_ATI YAP
+    Y.AMOUNT.CHECK = FIELD(Y.ORIG.RECD,"|",8)
+
+    IF NOT(Y.AMOUNT.CHECK) THEN
+        Y.ERROR.CHARS.LIST<-1> = "Baris ke " : I : ", Nominal mandatory dan tidak boleh diisi nol"
+    END ELSE
+        IF ISALNUM(Y.AMOUNT.CHECK) THEN
+            IF NOT(NUM(Y.AMOUNT.CHECK)) THEN
+                Y.ERROR.CHARS.LIST<-1> = "Baris ke " : I : ", Nominal tidak sesuai"
+            END
+        END ELSE
+            Y.ERROR.CHARS.LIST<-1> = "Baris ke " : I : ", Nominal tidak sesuai"
+        END
+    END
+*/20170829_ATI YAP
+
+    RETURN
+*-----------------------------------------------------------------------------
+PROCESS.DATA:
+*-----------------------------------------------------------------------------
+    FOR I = 1 TO Y.RECORD.CNT
+        GOSUB MAPPING.FIELD
+
+        Y.TOT.AMOUNT += Y.AMOUNT
+
+*---------------TOTAL DEBIT & CREDIT------------------------------------------
+        IF Y.SIGN EQ "C" THEN
+            Y.TOT.CREDIT += Y.AMOUNT
+            Y.TOT.REC.CR += 1
+
+        END
+        ELSE
+            Y.TOT.DEBIT  += Y.AMOUNT
+            Y.TOT.REC.DB += 1
+        END
+*-----------------------------------------------------------------------------
+
+*---------------TOTAL BRANCH--------------------------------------------------
+        FIND Y.CO.CODE IN Y.TEMP.CO.CODE SETTING POSF, POSV, POSS THEN
+        END ELSE
+            Y.TEMP.CO.CODE<-1> = Y.CO.CODE
+        END
+*-----------------------------------------------------------------------------
+
+*---------------TOTAL DEBIT CREDIT PER BRANCH---------------------------------
+        FIND Y.CO.CODE IN Y.TOT.DC.CO.CODE SETTING POSF, POSV, POSS THEN
+
+            IF Y.SIGN EQ "C" THEN
+                Y.TOT.DC.CO.CODE<POSF, 3> += Y.AMOUNT * 1
+
+            END
+            ELSE
+                Y.TOT.DC.CO.CODE<POSF, 2> += Y.AMOUNT * 1
+            END
+        END ELSE
+            IF Y.SIGN EQ "C" THEN
+                Y.TOT.DC.CO.CODE<-1> = Y.CO.CODE : @VM : @VM : Y.AMOUNT * 1
+            END
+            ELSE
+                Y.TOT.DC.CO.CODE<-1> = Y.CO.CODE : @VM : Y.AMOUNT * 1 : @VM
+            END
+        END
+*-----------------------------------------------------------------------------
+
+*---------------CHECK AO------------------------------------------------------
+        Y.TOT.DC.AO<1, 1> = Y.ACCOUNT.OFFICER
+        IF Y.SIGN EQ "C" THEN
+            Y.TOT.DC.AO<1, 3> += Y.AMOUNT * 1
+
+        END
+        ELSE
+            Y.TOT.DC.AO<1, 2> += Y.AMOUNT * 1
+        END
+
+        IF Y.ACCOUNT.OFFICER NE Y.ACCOUNT.OFFICER.NEXT THEN
+            IF Y.TOT.DC.AO<1, 2> NE Y.TOT.DC.AO<1, 3> THEN
+                IF OFS$OPERATION EQ "VALIDATE" THEN
+                    RETURN
+                END
+
+                Y.ERROR.MSG.LIST<-1> = "Cost Center " : Y.ACCOUNT.OFFICER : " tidak balance"
+                Y.ERROR.MSG.LIST<-1> = "Total transaksi debit & kredit tidak sama pada textfile"
+
+                GOSUB WRITE.ERR.MESSAGES
+
+                AF    = AUP.DATA.FILE.NAME
+                ETEXT = "Error textfile"
+                CALL STORE.END.ERROR
+
+                OFS$BROWSER.MESSAGES<-1> = "Cost Center " : Y.ACCOUNT.OFFICER : " tidak balance"
+                OFS$BROWSER.MESSAGES<-1> = "Total transaksi debit & kredit tidak sama pada textfile"
+
+                GOTO PROGRAM.ABORT
+            END
+
+            Y.TOT.DC.AO = ""
+        END
+*-----------------------------------------------------------------------------
+    NEXT I
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+MAPPING.FIELD:
+*-----------------------------------------------------------------------------
+    Y.SIGN             = FIELD(R.FOLDER<I>,"|",1)
+    Y.TRANSACTION.CODE = FIELD(R.FOLDER<I>,"|",2)
+    Y.ACCOUNT.NUMBER   = FIELD(R.FOLDER<I>,"|",3)
+    Y.PL.CATEGORY      = FIELD(R.FOLDER<I>,"|",4)
+    Y.ACCOUNT.OFFICER  = FIELD(R.FOLDER<I>,"|",5)
+    Y.CUSTOMER.ID      = FIELD(R.FOLDER<I>,"|",6)
+    Y.PRODUCT.CATEGORY = FIELD(R.FOLDER<I>,"|",7)
+    Y.AMOUNT           = FIELD(R.FOLDER<I>,"|",8)
+    Y.CO.CODE          = FIELD(R.FOLDER<I>,"|",9)
+
+    IF NOT(Y.CO.CODE) THEN
+        Y.CO.CODE = "NULL"
+    END
+
+    Y.ACCOUNT.OFFICER.NEXT = FIELD(R.FOLDER<I+1>,"|",5)
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+VALUE.FIELD:
+*-----------------------------------------------------------------------------
+    R.NEW(AUP.DATA.TOT.RECORD)    = Y.RECORD.CNT
+    R.NEW(AUP.DATA.TOT.AMOUNT)    = Y.TOT.AMOUNT
+    R.NEW(AUP.DATA.TOT.BRANCH)    = DCOUNT(Y.TEMP.CO.CODE,@FM)
+    R.NEW(AUP.DATA.TOT.DB.TRANS)  = Y.TOT.DEBIT
+    R.NEW(AUP.DATA.TOT.REC.DB)    = Y.TOT.REC.DB
+    R.NEW(AUP.DATA.TOT.CR.TRANS)  = Y.TOT.CREDIT
+    R.NEW(AUP.DATA.TOT.REC.CR)    = Y.TOT.REC.CR
+
+    Y.CNT.TOT.DC.CO.CODE = DCOUNT(Y.TOT.DC.CO.CODE,@FM)
+
+    FOR J = 1 TO Y.CNT.TOT.DC.CO.CODE
+        Y.BRANCH.BRANCH<-1> = Y.TOT.DC.CO.CODE<J,1>
+        Y.DEBIT.BRANCH<-1>  = Y.TOT.DC.CO.CODE<J,2>
+        Y.CREDIT.BRANCH<-1> = Y.TOT.DC.CO.CODE<J,3>
+
+*-Get Company Enrichment-------------------------------------------------------
+        CALL F.READ(FN.COM, Y.TOT.DC.CO.CODE<J,1>, R.COM, F.COM, ERR.COM)
+        IF R.COM THEN
+            Y.BRANCH.ENRI<-1> = R.COM<EB.COM.COMPANY.NAME>
+        END
+        ELSE
+            Y.BRANCH.ENRI<-1> = "Data tidak ditemukan"
+        END
+    NEXT J
+
+    CONVERT FM TO VM IN Y.BRANCH.BRANCH
+    CONVERT FM TO VM IN Y.DEBIT.BRANCH
+    CONVERT FM TO VM IN Y.CREDIT.BRANCH
+    CONVERT FM TO VM IN Y.BRANCH.ENRI
+
+    R.NEW(AUP.DATA.BRANCH.CODE)    = Y.BRANCH.BRANCH
+    OFS$ENRI<AUP.DATA.BRANCH.CODE> = Y.BRANCH.ENRI
+
+    R.NEW(AUP.DATA.TOT.DB.BRANCH) = Y.DEBIT.BRANCH
+    R.NEW(AUP.DATA.TOT.CR.BRANCH) = Y.CREDIT.BRANCH
+
+    R.NEW(AUP.DATA.STATUS)       = "INPUT"
+    R.NEW(AUP.DATA.UPLOAD.DATE)  = TODAY
+    R.NEW(AUP.DATA.USER.INPUT)   = OPERATOR
+    R.NEW(AUP.DATA.LAST.VERSION) = APPLICATION : PGM.VERSION
+
+    IF OFS$OPERATION EQ "VALIDATE" ELSE
+        GOSUB VALIDATE.FIELD
+    END
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+VALIDATE.FIELD:
+*-----------------------------------------------------------------------------
+    IF Y.TOT.DEBIT NE Y.TOT.CREDIT THEN
+        AF    = AUP.DATA.TOT.DB.TRANS
+        ETEXT = "Total transaksi debit & kredit tidak sama pada textfile"
+        CALL STORE.END.ERROR
+    END
+
+    FOR J = 1 TO Y.CNT.TOT.DC.CO.CODE
+        IF Y.TOT.DC.CO.CODE<J,2> NE Y.TOT.DC.CO.CODE<J,3> THEN
+            AF = AUP.DATA.BRANCH.CODE
+            AV = J
+            ETEXT = "Total transaksi debit & kredit tidak sama pada textfile"
+            CALL STORE.END.ERROR
+        END
+    NEXT J
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+RESET.VAR:
+*-----------------------------------------------------------------------------
+    Y.TOT.AMOUNT     = 0
+    Y.TOT.CREDIT     = 0
+    Y.TOT.REC.CR     = 0
+    Y.TOT.DEBIT      = 0
+    Y.TOT.REC.DB     = 0
+    Y.TEMP.CO.CODE   = ""
+    Y.TOT.DC.CO.CODE = ""
+
+    Y.TOT.DC.AO     = ""
+    Y.BRANCH.BRANCH = ""
+    Y.DEBIT.BRANCH  = ""
+    Y.CREDIT.BRANCH = ""
+
+    R.NEW(AUP.DATA.TOT.RECORD)    = ""
+    R.NEW(AUP.DATA.TOT.AMOUNT)    = ""
+    R.NEW(AUP.DATA.TOT.BRANCH)    = ""
+    R.NEW(AUP.DATA.TOT.DB.TRANS)  = ""
+    R.NEW(AUP.DATA.TOT.REC.DB)    = ""
+    R.NEW(AUP.DATA.TOT.CR.TRANS)  = ""
+    R.NEW(AUP.DATA.TOT.REC.CR)    = ""
+    R.NEW(AUP.DATA.BRANCH.CODE)   = ""
+    R.NEW(AUP.DATA.TOT.DB.BRANCH) = ""
+    R.NEW(AUP.DATA.TOT.CR.BRANCH) = ""
+    R.NEW(AUP.DATA.UPLOAD.DATE)   = ""
+    R.NEW(AUP.DATA.USER.INPUT)    = ""
+    R.NEW(AUP.DATA.USER.AUTH)     = ""
+
+    Y.DATE      = OCONV(DATE(),"D-")
+    Y.REAL.DATE = Y.DATE[7,4] : Y.DATE[1,2] : Y.DATE[4,2]
+    R.ATI.TH.AUP.MSG.ERR.DATA = ""
+
+    RETURN
+*-----------------------------------------------------------------------------
+WRITE.ERR.MESSAGES:
+*-----------------------------------------------------------------------------
+    AUP.ID = ID.NEW
+    Y.ERROR.DATA.LIST = Y.ERROR.MSG.LIST
+
+    CONVERT FM TO VM IN Y.ERROR.DATA.LIST
+
+    SEL.DATA = "SELECT " : FN.ATI.TH.AUP.MSG.ERR.DATA : " WITH @ID LIKE " : AUP.ID : "..."
+    CALL EB.READLIST(SEL.DATA, SEL.DATA.LIST, "", SEL.CNT.DATA, SEL.ERR.DATA)
+
+    Y.MSG.ERR.ID = SEL.DATA.LIST<SEL.CNT.DATA>
+    CALL F.READ(FN.ATI.TH.AUP.MSG.ERR.DATA, Y.MSG.ERR.ID, R.MSG.ERR.DATA, F.ATI.TH.AUP.MSG.ERR.DATA, ERR.MSG.ERR.DATA)
+
+    Y.LAST.ERROR = R.MSG.ERR.DATA<AUP.ERR.DATA.ERROR.DESC>
+    SEL.CNT.DATA += 1
+
+    R.ATI.TH.AUP.MSG.ERR.DATA<AUP.ERR.DATA.FILE.NAME>   = R.NEW(AUP.DATA.FILE.NAME)
+    R.ATI.TH.AUP.MSG.ERR.DATA<AUP.ERR.DATA.REAL.DATE>   = Y.REAL.DATE
+    R.ATI.TH.AUP.MSG.ERR.DATA<AUP.ERR.DATA.USER.INPUT>  = OPERATOR
+    R.ATI.TH.AUP.MSG.ERR.DATA<AUP.ERR.DATA.ERROR.DESC>  = Y.ERROR.DATA.LIST
+
+    Y.MSG.ERR.ID = AUP.ID : "." : SEL.CNT.DATA
+
+    IF Y.LAST.ERROR NE Y.ERROR.DATA.LIST THEN
+*WRITE R.ATI.TH.AUP.MSG.ERR.DATA TO F.ATI.TH.AUP.MSG.ERR.DATA, Y.MSG.ERR.ID
+        CALL ID.LIVE.WRITE(FN.ATI.TH.AUP.MSG.ERR.DATA, Y.MSG.ERR.ID, R.ATI.TH.AUP.MSG.ERR.DATA)
+        CALL JOURNAL.UPDATE('')
+    END
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+PROGRAM.ABORT:
+*-----------------------------------------------------------------------------
+    RETURN TO PROGRAM.ABORT
+*-----------------------------------------------------------------------------
+END
+
+
+
+

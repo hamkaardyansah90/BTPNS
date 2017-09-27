@@ -1,0 +1,40 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+* 17:11:27 02 AUG 2016 * 16:18:28 06 MAR 2015 * 15:49:38 05 FEB 2015 * 15:48:52 05 FEB 2015 * 13:55:19 26 JUN 2015
+* WIN-KVUAVRB60BE/R14 * WIN-KVUAVRB60BE/R14 * WIN-KVUAVRB60BE/R14 * WIN-KVUAVRB60BE/R14 * WIN-KVUAVRB60BE/R14
+*-----------------------------------------------------------------------------
+    SUBROUTINE ATI.CONV.EC.VM.COUNT
+*-----------------------------------------------------------------------------
+* Developer Name     : Dwi K
+* Development Date   : 20151207
+* Description        : Routine to make multivalue line in enquiry
+*-----------------------------------------------------------------------------
+* Modification History:-
+*-----------------------------------------------------------------------------
+* Date               :
+* Modified by        :
+* Description        :
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+
+*-----------------------------------------------------------------------------
+
+    Y.DATA = O.DATA
+
+    CONVERT '#' TO FM IN Y.DATA
+
+    Y.CNT  = DCOUNT(Y.DATA,FM)
+
+    Y.DATA.VM<1,Y.CNT> = Y.DATA<VC>
+    O.DATA   = Y.DATA.VM
+
+    IF Y.CNT GE VM.COUNT THEN
+        VM.COUNT = Y.CNT
+    END
+
+    RETURN
+*-----------------------------------------------------------------------------
+END
+

@@ -1,0 +1,212 @@
+*-----------------------------------------------------------------------------
+* <Rating>-109</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ATI.BS.AUP.UP.GEN.BATCH
+*-----------------------------------------------------------------------------
+* Developer Name     : ATI Juan Felix
+* Development Date   : 20170124
+* Description        : Single Batch Routine for Generate Batch No for Upload UP
+*-----------------------------------------------------------------------------
+* Modification History:-
+*-----------------------------------------------------------------------------
+* Date            Modified by                Description
+* 20170522        ATI Yudistia Adnan         Change F.WRITE to WRITE when write to tabel ATI.TT.AUP.UP.AO.CONCAT
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.ATI.TH.AUP.UP.DATA
+    $INSERT I_F.ATI.TT.AUP.UP.AO.CONCAT
+    $INSERT I_F.ATI.TL.AUP.UP.BATCH
+    $INSERT I_F.ATI.TT.AUP.UP.BATCH.CONCAT
+    $INSERT I_F.ATI.TH.AUP.PARAM
+
+*-----------------------------------------------------------------------------
+MAIN:
+*-----------------------------------------------------------------------------
+    GOSUB INIT
+    GOSUB PROCESS
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+INIT:
+*-----------------------------------------------------------------------------
+    FN.ATI.TH.AUP.UP.DATA.NAU = "F.ATI.TH.AUP.UP.DATA$NAU"
+    CALL OPF(FN.ATI.TH.AUP.UP.DATA.NAU, F.ATI.TH.AUP.UP.DATA.NAU)
+
+    FN.ATI.TT.AUP.UP.AO.CONCAT = "F.ATI.TT.AUP.UP.AO.CONCAT"
+    CALL OPF(FN.ATI.TT.AUP.UP.AO.CONCAT, F.ATI.TT.AUP.UP.AO.CONCAT)
+
+    FN.ATI.TL.AUP.UP.BATCH = "F.ATI.TL.AUP.UP.BATCH"
+    CALL OPF(FN.ATI.TL.AUP.UP.BATCH, F.ATI.TL.AUP.UP.BATCH)
+
+    FN.ATI.TT.AUP.UP.BATCH.CONCAT = "F.ATI.TT.AUP.UP.BATCH.CONCAT"
+    CALL OPF(FN.ATI.TT.AUP.UP.BATCH.CONCAT, F.ATI.TT.AUP.UP.BATCH.CONCAT)
+
+    FN.ATI.TH.AUP.PARAM = "F.ATI.TH.AUP.PARAM"
+    CALL OPF(FN.ATI.TH.AUP.PARAM, F.ATI.TH.AUP.PARAM)
+
+    Y.AUP.ID = BATCH.DETAILS<3,1>
+
+    Y.BATCH.NO = ""
+
+    R.ATI.TL.AUP.UP.BATCH = ""
+    SEL.CMD = ""
+
+    GOSUB RESET.VAR
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+PROCESS:
+*-----------------------------------------------------------------------------
+    GOSUB DELETE.DATA.TABLE
+    GOSUB GET.AUP.PARAM
+
+*   SEL.CMD  = "SELECT " : FN.ATI.TT.AUP.UP.AO.CONCAT : " WITH @ID LIKE " : Y.AUP.ID : "..."
+    SEL.CMD  = "SELECT " : FN.ATI.TT.AUP.UP.AO.CONCAT : " WITH @ID EQ '" : Y.AUP.ID : "...'"
+    SEL.LIST = ""
+    CALL EB.READLIST(SEL.CMD, SEL.LIST, "", SEL.CNT, SEL.ERR)
+
+    FOR I = 1 TO SEL.CNT
+        Y.AO.CONCAT.ID = SEL.LIST<I>
+
+        CALL F.READ(FN.ATI.TT.AUP.UP.AO.CONCAT, Y.AO.CONCAT.ID, R.ATI.TT.AUP.UP.AO.CONCAT, F.ATI.TT.AUP.UP.AO.CONCAT, ERR.ATI.TT.AUP.UP.AO.CONCAT)
+        Y.AO.CONCAT.CNT = DCOUNT(R.ATI.TT.AUP.UP.AO.CONCAT, FM)
+
+        FOR J = 1 TO Y.AO.CONCAT.CNT
+            Y.UP.DATA.ID = R.ATI.TT.AUP.UP.AO.CONCAT<J>
+
+            CALL F.READ(FN.ATI.TH.AUP.UP.DATA.NAU, Y.UP.DATA.ID, R.ATI.TH.AUP.UP.DATA.NAU, F.ATI.TH.AUP.UP.DATA.NAU, ERR.ATI.TH.AUP.UP.DATA.NAU)
+            Y.SIGN            = R.ATI.TH.AUP.UP.DATA.NAU<UP.DATA.SIGN>
+            Y.AMOUNT          = R.ATI.TH.AUP.UP.DATA.NAU<UP.DATA.AMOUNT>
+            Y.COMPANY         = R.ATI.TH.AUP.UP.DATA.NAU<UP.DATA.CO.CODE>
+            Y.ACCOUNT.OFFICER = R.ATI.TH.AUP.UP.DATA.NAU<UP.DATA.ACCOUNT.OFFICER>
+            Y.CO.CODE         = R.ATI.TH.AUP.UP.DATA.NAU<UP.DATA.CO.CODE>
+
+            BEGIN CASE
+            CASE Y.SIGN EQ "D"
+                Y.AMOUNT      = NEG(Y.AMOUNT)
+                Y.TOT.REC.DB += 1
+                Y.TOT.AMT.DB += Y.AMOUNT
+
+            CASE Y.SIGN EQ "C"
+                Y.TOT.REC.CR += 1
+                Y.TOT.AMT.CR += Y.AMOUNT
+            END CASE
+
+            Y.TOT.REC += 1
+            Y.TOT.AMT += Y.AMOUNT
+
+            Y.UP.DATA.ID.LIST<-1> = Y.UP.DATA.ID
+
+            IF (Y.TOT.REC GE Y.TRACEHOLD) AND (ABS(Y.TOT.AMT.DB) EQ Y.TOT.AMT.CR) THEN
+*IF ABS(Y.TOT.AMT.DB) EQ Y.TOT.AMT.CR THEN
+                GOSUB CREATE.UPLOAD.BATCH
+                CONTINUE
+            END
+
+            IF J EQ Y.AO.CONCAT.CNT THEN
+                GOSUB CREATE.UPLOAD.BATCH
+                CONTINUE
+            END
+        NEXT J
+
+*-Delete List Of Upload GL Data-----------------------------------------------
+        CALL F.DELETE(FN.ATI.TT.AUP.UP.AO.CONCAT, Y.AO.CONCAT.ID)
+    NEXT I
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+DELETE.DATA.TABLE:
+*-----------------------------------------------------------------------------
+*-Delete Upload GL Batch------------------------------------------------------
+    SEL.CMD.BATCH  = "SELECT " : FN.ATI.TL.AUP.UP.BATCH : " WITH @ID LIKE " : Y.AUP.ID : "..."
+    SEL.LIST.BATCH = ""
+    CALL EB.READLIST(SEL.CMD.BATCH, SEL.LIST.BATCH, "", SEL.CNT.BATCH, SEL.ERR.BATCH)
+
+    FOR I = 1 TO SEL.CNT.BATCH
+        DELETE F.ATI.TL.AUP.UP.BATCH, SEL.LIST.BATCH<I>
+    NEXT I
+
+*-Delete Upload GL Batch Concat-----------------------------------------------
+    SEL.CMD.BATCH.CON  = "SELECT " : FN.ATI.TT.AUP.UP.BATCH.CONCAT: " WITH @ID EQ '" : Y.AUP.ID : "...'"
+    SEL.LIST.BATCH.CON = ""
+    CALL EB.READLIST(SEL.CMD.BATCH.CON, SEL.LIST.BATCH.CON, "", SEL.CNT.BATCH.CON, SEL.ERR.BATCH.CON)
+
+    FOR I = 1 TO SEL.CNT.BATCH.CON
+        DELETE F.ATI.TT.AUP.UP.BATCH.CONCAT, SEL.LIST.BATCH.CON<I>
+    NEXT I
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+GET.AUP.PARAM:
+*-----------------------------------------------------------------------------
+    CALL F.READ(FN.ATI.TH.AUP.PARAM, "SYSTEM", R.ATI.TH.AUP.PARAM, F.ATI.TH.AUP.PARAM, ERR.ATI.TH.AUP.PARAM)
+    Y.TRACEHOLD = R.ATI.TH.AUP.PARAM<AUP.PARAM.TRACEHOLD>
+
+    IF NOT(Y.TRACEHOLD) THEN
+        Y.TRACEHOLD = 100
+    END
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+CREATE.UPLOAD.BATCH:
+*-----------------------------------------------------------------------------
+    Y.BATCH.NO += 1
+
+*   Y.UP.BATCH.ID = Y.AUP.ID : "*" : Y.ACCOUNT.OFFICER : "*" : Y.BATCH.NO
+    Y.UP.BATCH.ID = Y.AUP.ID : "*" : Y.ACCOUNT.OFFICER : "*" : Y.CO.CODE  : "*" : Y.BATCH.NO
+
+*-Write Data Batch Upload UP Data to ATI.TL.AUP.UP.BATCH----------------------
+    Y.UP.ID.VM.LIST = Y.UP.DATA.ID.LIST
+    CONVERT FM TO VM IN Y.UP.ID.VM.LIST
+
+    R.ATI.TL.AUP.UP.BATCH<UP.BATCH.AUP.ID>          = Y.AUP.ID
+    R.ATI.TL.AUP.UP.BATCH<UP.BATCH.COMPANY>         = Y.COMPANY
+    R.ATI.TL.AUP.UP.BATCH<UP.BATCH.ACCOUNT.OFFICER> = Y.ACCOUNT.OFFICER
+    R.ATI.TL.AUP.UP.BATCH<UP.BATCH.TOT.REC>         = Y.TOT.REC
+    R.ATI.TL.AUP.UP.BATCH<UP.BATCH.TOT.AMT>         = Y.TOT.AMT
+    R.ATI.TL.AUP.UP.BATCH<UP.BATCH.TOT.REC.DB>      = Y.TOT.REC.DB
+    R.ATI.TL.AUP.UP.BATCH<UP.BATCH.TOT.AMT.DB>      = Y.TOT.AMT.DB
+    R.ATI.TL.AUP.UP.BATCH<UP.BATCH.TOT.REC.CR>      = Y.TOT.REC.CR
+    R.ATI.TL.AUP.UP.BATCH<UP.BATCH.TOT.AMT.CR>      = Y.TOT.AMT.CR
+    R.ATI.TL.AUP.UP.BATCH<UP.BATCH.RECORD.STATUS>   = "INAU"
+    R.ATI.TL.AUP.UP.BATCH<UP.BATCH.UP.ID>           = Y.UP.ID.VM.LIST
+
+    CALL F.WRITE(FN.ATI.TL.AUP.UP.BATCH, Y.UP.BATCH.ID, R.ATI.TL.AUP.UP.BATCH)
+
+*-Write List Of Upload UP Data to Batch Concate-------------------------------
+*<20170522_Yudistia Adnan
+*   CALL F.WRITE(FN.ATI.TT.AUP.UP.BATCH.CONCAT, Y.UP.BATCH.ID, Y.UP.DATA.ID.LIST)
+    WRITE Y.UP.DATA.ID.LIST TO F.ATI.TT.AUP.UP.BATCH.CONCAT, Y.UP.BATCH.ID
+*>20170522_Yudistia Adnan
+
+    GOSUB RESET.VAR
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+RESET.VAR:
+*-----------------------------------------------------------------------------
+    Y.TOT.REC    = ""
+    Y.TOT.AMT    = ""
+    Y.TOT.REC.DB = ""
+    Y.TOT.AMT.DB = ""
+    Y.TOT.REC.CR = ""
+    Y.TOT.AMT.CR = ""
+
+    Y.UP.DATA.ID.LIST = ""
+
+    RETURN
+*-----------------------------------------------------------------------------
+END
+
+
+
+
+
+

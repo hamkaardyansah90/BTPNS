@@ -1,0 +1,91 @@
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ATI.DSF.AC.JOINT.NAME(Y.DATA)
+*-----------------------------------------------------------------------------
+* Developer Name     : ATI Mauizah Hasanah
+* Development Date   : 11 October 2016
+* Description        : Routine deal slip to show joint holder
+*-----------------------------------------------------------------------------
+* Modification History:-
+*-----------------------------------------------------------------------------
+* Date               :
+* Modified by        :
+* Description        :
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.ACCOUNT
+
+*-----------------------------------------------------------------------------
+MAIN:
+*-----------------------------------------------------------------------------
+    GOSUB INIT
+    GOSUB PROCESS
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+INIT:
+*-----------------------------------------------------------------------------
+
+    FN.ACCOUNT = "F.ACCOUNT"
+    F.ACCOUNT  = ""
+    CALL OPF(FN.ACCOUNT, F.ACCOUNT)
+
+    Y.APP      = "ACCOUNT"
+    Y.FLD.NAME = "ATI.JOINT.NAME"
+    Y.POS      = ""
+    CALL MULTI.GET.LOC.REF(Y.APP, Y.FLD.NAME,Y.POS)
+    Y.ATI.JOINT.NAME.POS  = Y.POS<1,1>
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+PROCESS:
+*-----------------------------------------------------------------------------
+
+    Y.ID.ACCOUNT = Y.DATA
+    CALL F.READ(FN.ACCOUNT, Y.ID.ACCOUNT, R.ACCOUNT, F.ACCOUNT, ACCOUNT.ERR)
+    Y.JOINT.HOLDER.NAME = R.ACCOUNT<AC.LOCAL.REF, Y.ATI.JOINT.NAME.POS>
+
+    IF Y.JOINT.HOLDER.NAME EQ "" THEN
+        Y.JOINT.HOLDER.NAME = R.ACCOUNT<AC.ACCOUNT.TITLE.1>
+    END
+
+    CONVERT SM TO FM IN Y.JOINT.HOLDER.NAME
+
+    Y.JOINT.NAME.1 = Y.JOINT.HOLDER.NAME<1>
+    Y.JOINT.NAME.2 = Y.JOINT.HOLDER.NAME<2>
+
+    Y.PRINT.JOINT.NAME = Y.JOINT.NAME.1 : CHAR(10) : FMT("", "10R") : Y.JOINT.NAME.2
+
+    Y.DATA = Y.PRINT.JOINT.NAME
+
+    RETURN
+*-----------------------------------------------------------------------------
+END
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

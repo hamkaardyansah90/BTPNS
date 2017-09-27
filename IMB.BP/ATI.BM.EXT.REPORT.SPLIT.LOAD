@@ -1,0 +1,82 @@
+*-----------------------------------------------------------------------------
+* <Rating>-60</Rating>
+* 18:00:08 20 SEP 2016 
+* CBS-APP1-JKT/t24sit 
+*-----------------------------------------------------------------------------
+    SUBROUTINE ATI.BM.EXT.REPORT.SPLIT.LOAD
+*-----------------------------------------------------------------------------
+* Developer Name    : YEM
+* Development Date  : 20160908
+* Description       : Extract Report Breakdown Record Multivalue
+*-----------------------------------------------------------------------------
+* Modification History:-
+*-----------------------------------------------------------------------------
+* Date               : 20160908
+* Modified by        : Fatkhur Rohman
+* Description        : Integrating to BTPNS DTUR Summary
+*-----------------------------------------------------------------------------
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.DATES
+    $INSERT I_F.FILE.CONTROL
+    $INSERT I_ATI.BM.EXT.REPORT.SPLIT.COMMON
+
+*-----------------------------------------------------------------------------
+MAIN:
+*-----------------------------------------------------------------------------
+    GOSUB INIT
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+INIT:
+*-----------------------------------------------------------------------------
+    FN.ID.REP = 'F.ATI.TH.EXT.REPORT'
+    CALL OPF(FN.ID.REP, F.ID.REP)
+
+    FN.FC = 'F.FILE.CONTROL'
+    F.FC  = ''
+    CALL OPF(FN.FC,F.FC)
+
+    FN.FILE.EXT = 'F.ATI.TT.FILE.EXT.REPORT'
+    F.FILE.EXT  = ''
+    CALL OPF(FN.FILE.EXT,F.FILE.EXT)
+
+    Y.APP        = 'ATI.TH.EXT.REPORT'
+    Y.FLD.NAME   = 'ATI.EXT.BDOWN': @VM :'ATI.EXT.SEP': @VM :'ATI.EXT.ASSOC'
+    Y.POS        = ''
+    CALL MULTI.GET.LOC.REF(Y.APP, Y.FLD.NAME, Y.POS)
+
+    Y.BREAKDOWN.COL.POS  = Y.POS<1,1>
+    Y.BREAKDOWN.SEP.POS  = Y.POS<1,2>
+    Y.BREAKDOWN.ASSC.POS = Y.POS<1,3>
+
+    Y.BATCH.DETAILS = BATCH.DETAILS<3,1>
+    Y.BATCH.CNT     = DCOUNT(Y.BATCH.DETAILS, SM)
+
+    FOR Y.LOOP = 1 TO Y.BATCH.CNT
+        Y.ID.EXT.REP = Y.BATCH.DETAILS<1,1,Y.LOOP>
+        GOSUB CREATE.TABLE.TEMP
+    NEXT Y.LOOP
+
+    RETURN
+*-----------------------------------------------------------------------------
+CREATE.TABLE.TEMP:
+*-----------------------------------------------------------------------------
+*---------------------------TABLE TEMP----------------------------------------
+    FN.EXT.TEMP = 'F.ATI.EXT.REP.':Y.ID.EXT.REP:'.BDOWN.TEMP'
+    OPEN FN.EXT.TEMP TO F.EXT.TEMP ELSE
+        READ R.FC FROM F.FC, 'JOB.LIST.1' THEN
+            WRITE R.FC TO F.FC, 'ATI.EXT.REP.':Y.ID.EXT.REP:'.BDOWN.TEMP'
+        END
+        CALL EBS.CREATE.FILE(FN.EXT.TEMP,'',ERROR.MSG)
+    END
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+END
+
+
+

@@ -1,0 +1,76 @@
+*-----------------------------------------------------------------------------
+* <Rating>-50</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ATI.BM.AUP.UP.EOD(Y.UP.ID)
+*-----------------------------------------------------------------------------
+* Developer Name     : ATI Juan Felix
+* Development Date   : 20170124
+* Description        : Batch Routine Multi End Of Day Data Upload UP
+*-----------------------------------------------------------------------------
+* Modification History:-
+*-----------------------------------------------------------------------------
+* Date            Modified by                Description
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_TSA.COMMON
+    $INSERT I_F.ATI.TH.AUP.UP.DATA
+    $INSERT I_F.ATI.TL.AUP.UP.BATCH
+    $INSERT I_F.ATI.TT.AUP.UP.BATCH.CONCAT
+    $INSERT I_F.ATI.TT.AUP.UP.AO.CONCAT
+    $INSERT I_F.ATI.TT.AUP.UP.DATE.CONCAT
+    $INSERT I_ATI.BM.AUP.UP.EOD.COMMON
+
+*-----------------------------------------------------------------------------
+MAIN:
+*-----------------------------------------------------------------------------
+    GOSUB INIT
+    GOSUB PROCESS
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+INIT:
+*-----------------------------------------------------------------------------
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+PROCESS:
+*-----------------------------------------------------------------------------
+    CALL F.READ(FN.ATI.TH.AUP.UP.DATA, Y.UP.ID, R.ATI.TH.AUP.UP.DATA, F.ATI.TH.AUP.UP.DATA, ERR.ATI.TH.AUP.UP.DATA)
+    Y.VALUE.DATE = R.ATI.TH.AUP.UP.DATA<UP.DATA.VALUE.DATE>
+
+    Y.UP.ID.HIS = Y.UP.ID : ";1"
+    
+	GOSUB CREATE.DATE.CONCATE
+
+    CALL F.WRITE(FN.ATI.TH.AUP.UP.DATA.HIS, Y.UP.ID.HIS, R.ATI.TH.AUP.UP.DATA)
+    CALL F.DELETE(FN.ATI.TH.AUP.UP.DATA, Y.UP.ID)
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+CREATE.DATE.CONCATE:
+*-----------------------------------------------------------------------------
+    Y.UP.DATE.ID = Y.VALUE.DATE : "-" : AGENT.NUMBER
+    CALL F.READ(FN.ATI.TT.AUP.UP.DATE.CONCAT, Y.UP.DATE.ID, R.ATI.TT.AUP.UP.DATE.CONCAT, F.ATI.TT.AUP.UP.DATE.CONCAT, ERR.ATI.TT.AUP.UP.DATE.CONCAT)
+    R.ATI.TT.AUP.UP.DATE.CONCAT<-1> = Y.UP.ID.HIS
+    CALL F.WRITE(FN.ATI.TT.AUP.UP.DATE.CONCAT, Y.UP.DATE.ID, R.ATI.TT.AUP.UP.DATE.CONCAT)
+
+    Y.UP.DATA.CNT = DCOUNT(R.ATI.TT.AUP.UP.DATE.CONCAT, FM)
+
+    IF Y.UP.DATA.CNT GE 100 THEN
+        CALL ALLOCATE.UNIQUE.TIME(Y.UNIQUE.TIME)
+
+        Y.UP.DATE.ID.NEW = Y.UP.DATE.ID : "-" : Y.UNIQUE.TIME
+
+        CALL F.WRITE(FN.ATI.TT.AUP.UP.DATE.CONCAT, Y.UP.DATE.ID.NEW, R.ATI.TT.AUP.UP.DATE.CONCAT)
+        CALL F.DELETE(FN.ATI.TT.AUP.UP.DATE.CONCAT, Y.UP.DATE.ID)
+    END
+
+    RETURN
+*-----------------------------------------------------------------------------
+END
+
+

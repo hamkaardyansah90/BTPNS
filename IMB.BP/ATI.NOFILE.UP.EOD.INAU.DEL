@@ -1,0 +1,227 @@
+*-----------------------------------------------------------------------------
+* <Rating>-140</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ATI.NOFILE.UP.EOD.INAU.DEL(Y.OUTPUT)
+*-----------------------------------------------------------------------------
+* Developer Name     : 20170713
+* Development Date   : Novi Leo
+* Description        : Routine nofile to list UP INAU deleted
+*-----------------------------------------------------------------------------
+* Modification History:-
+*-----------------------------------------------------------------------------
+* Date               :
+* Modified by        :
+* Description        :
+*-----------------------------------------------------------------------------
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+    $INSERT I_F.ATI.TH.AUP.UP.DATA.NAU.DEL
+
+*-----------------------------------------------------------------------------
+MAIN:
+*-----------------------------------------------------------------------------
+
+    GOSUB INIT
+    GOSUB PROC.SELECTION
+    GOSUB PROCESS
+
+    RETURN
+*-----------------------------------------------------------------------------
+INIT:
+*-----------------------------------------------------------------------------
+
+    FN.ATI.TH.AUP.UP.DATA.NAU.DEL = "F.ATI.TH.AUP.UP.DATA.NAU.DEL"
+    F.ATI.TH.AUP.UP.DATA.NAU.DEL  = ""
+    CALL OPF(FN.ATI.TH.AUP.UP.DATA.NAU.DEL, F.ATI.TH.AUP.UP.DATA.NAU.DEL)
+
+    FIND "ID.UP" IN ENQ.SELECTION<2> SETTING Y.POSF, Y.POSV THEN
+        Y.ID.OP = ENQ.SELECTION<3,Y.POSV>
+        Y.ID.UP = ENQ.SELECTION<4,Y.POSV>
+    END
+
+    FIND "ACCOUNT.NUMBER" IN ENQ.SELECTION<2> SETTING POSF, POSV THEN
+        Y.AC.OP = ENQ.SELECTION<3,POSV>
+        Y.AC.NO = ENQ.SELECTION<4,POSV>
+    END
+
+    FIND "PL.CATEGORY" IN ENQ.SELECTION<2> SETTING POSFM, POSVM THEN
+        Y.PL.OP  = ENQ.SELECTION<3,POSVM>
+        Y.PL.CAT = ENQ.SELECTION<4,POSVM>
+    END
+
+    FIND "AUP.ID" IN ENQ.SELECTION<2> SETTING Y.POSFM, Y.POSVM THEN
+        Y.AUP.OP = ENQ.SELECTION<3,Y.POSVM>
+        Y.AUP.ID = ENQ.SELECTION<4,Y.POSVM>
+    END
+
+    FIND "INPUTTER" IN ENQ.SELECTION<2> SETTING Y.POS.FM, Y.POS.VM THEN
+        Y.INP.OP = ENQ.SELECTION<3,Y.POS.VM>
+        Y.INPUTT = ENQ.SELECTION<4,Y.POS.VM>
+    END
+
+    FIND "DATE.TIME" IN ENQ.SELECTION<2> SETTING POS.FM, POS.VM THEN
+        Y.DT.OP = ENQ.SELECTION<3,POS.VM>
+        Y.DATE  = ENQ.SELECTION<4,POS.VM>
+    END
+
+    FIND "NF.CO.CODE" IN ENQ.SELECTION<2> SETTING POSFM, POSVM THEN
+        Y.CODE.OP = ENQ.SELECTION<3,POS.VM>
+        Y.CODE    = ENQ.SELECTION<4,POS.VM>
+    END
+
+    RETURN
+*-----------------------------------------------------------------------------
+PROC.SELECTION:
+*-----------------------------------------------------------------------------
+
+    SEL.CMD = "SELECT ":FN.ATI.TH.AUP.UP.DATA.NAU.DEL
+
+    IF Y.ID.UP THEN
+        IF Y.ID.OP EQ "EQ" THEN
+            SEL.CMD := " WITH @ID EQ ":Y.ID.UP
+        END ELSE
+            SEL.CMD := " WITH @ID LIKE ...":Y.ID.UP:"..."
+        END
+    END
+
+    IF Y.AC.NO THEN
+        IF Y.AC.OP EQ "EQ" THEN
+            SEL.CMD := " WITH ACCOUNT.NUMBER EQ ":Y.AC.NO
+        END ELSE
+            SEL.CMD := " WITH ACCOUNT.NUMBER LIKE ...":Y.AC.NO:"..."
+        END
+    END
+
+    IF Y.PL.CAT THEN
+        IF Y.PL.OP EQ "EQ" THEN
+            SEL.CMD := " WITH PL.CATEGORY EQ ":Y.PL.CAT
+        END ELSE
+            SEL.CMD := " WITH PL.CATEGORY LIKE ...":Y.PL.CAT:"..."
+        END
+    END
+
+    IF Y.AUP.ID THEN
+        IF Y.AUP.OP EQ "EQ" THEN
+            SEL.CMD := " WITH AUP.ID EQ ":Y.AUP.ID
+        END ELSE
+            SEL.CMD := " WITH AUP.ID LIKE ...":Y.AUP.ID:"..."
+        END
+    END
+
+    IF Y.INPUTT THEN
+        SEL.CMD := " WITH INPUTTER LIKE ...":Y.INPUTT:"..."
+    END
+    IF Y.DATE THEN
+        IF Y.DT.OP EQ "EQ" THEN
+            Y.DATE = Y.DATE[3,6]
+            IF Y.DATE EQ "TODAY" OR Y.DATE EQ "!TODAY" THEN
+                Y.DATE = TODAY[3,6]
+            END
+            SEL.CMD := " WITH DATE.TIME LIKE ":Y.DATE:"..."
+        END ELSE
+            IF FIELD(Y.DATE, SM, 1) EQ "TODAY" OR FIELD(Y.DATE, SM, 1) EQ "!TODAY" THEN
+                Y.DATE.1 = TODAY[3,6]
+            END ELSE
+                Y.DATE.1 = FIELD(Y.DATE, SM,1)
+                Y.DATE.1 = Y.DATE.1[3,6]
+            END
+
+            IF FIELD(Y.DATE, SM, 2) EQ "TODAY" OR FIELD(Y.DATE, SM, 2) EQ "!TODAY" THEN
+                Y.DATE.2 = TODAY[3,6]
+            END ELSE
+                Y.DATE.2 = FIELD(Y.DATE, SM,2)
+                Y.DATE.2 = Y.DATE.2[3,6]
+            END
+
+            SEL.CMD := " WITH DATE.TIME GE '":Y.DATE.1:"0000' AND DATE.TIME LE '":Y.DATE.2:"5959'"
+        END
+    END
+
+    IF Y.CODE THEN
+        IF Y.CODE.OP EQ "EQ" THEN
+            SEL.CMD := " WITH CO.CODE EQ " : Y.CODE
+        END ELSE
+            SEL.CMD := " WITH CO.CODE LIKE ..." : Y.CODE : "..."
+        END
+    END
+
+    SEL.CMD := " BY-DSND AUP.ID BY NO.SEQ"
+
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,"",SEL.NO,SEL.ERR)
+
+    RETURN
+*-----------------------------------------------------------------------------
+PROCESS:
+*-----------------------------------------------------------------------------
+
+    FOR Y.LOOP = 1 TO SEL.NO
+        Y.ID = SEL.LIST<Y.LOOP>
+        CALL F.READ(FN.ATI.TH.AUP.UP.DATA.NAU.DEL,Y.ID,R.ATI.TH.AUP.UP.DATA.NAU.DEL,F.ATI.TH.AUP.UP.DATA.NAU.DEL,ATI.TH.AUP.UP.DATA.NAU.DEL.ERR)
+        Y.SIGN       = R.ATI.TH.AUP.UP.DATA.NAU.DEL<UP.NAU.DEL.SIGN>
+        Y.TRANS.CODE = R.ATI.TH.AUP.UP.DATA.NAU.DEL<UP.NAU.DEL.TRANSACTION.CODE>
+        Y.ACCOUNT.NO = R.ATI.TH.AUP.UP.DATA.NAU.DEL<UP.NAU.DEL.ACCOUNT.NUMBER>
+        Y.PL.CATEG   = R.ATI.TH.AUP.UP.DATA.NAU.DEL<UP.NAU.DEL.PL.CATEGORY>
+        Y.AMOUNT     = R.ATI.TH.AUP.UP.DATA.NAU.DEL<UP.NAU.DEL.AMOUNT>
+        Y.NARRATIVE  = R.ATI.TH.AUP.UP.DATA.NAU.DEL<UP.NAU.DEL.NARRATIVE>
+        Y.CO.CODE    = R.ATI.TH.AUP.UP.DATA.NAU.DEL<UP.NAU.DEL.CO.CODE>
+        Y.AUP.ID     = R.ATI.TH.AUP.UP.DATA.NAU.DEL<UP.NAU.DEL.AUP.ID>
+        Y.INPUTTER   = R.ATI.TH.AUP.UP.DATA.NAU.DEL<UP.NAU.DEL.INPUTTER>
+        Y.DATE.TIME  = R.ATI.TH.AUP.UP.DATA.NAU.DEL<UP.NAU.DEL.DATE.TIME>
+        Y.NO.SEQ     = R.ATI.TH.AUP.UP.DATA.NAU.DEL<UP.NAU.DEL.NO.SEQ>
+
+        Y.DATE = "20":Y.DATE.TIME[1,6]
+
+        IF Y.SIGN EQ "C" THEN
+            Y.SIGN.DK = "K"
+            Y.AMT.C   = Y.AMOUNT
+            Y.AMT.D   = "0"
+        END ELSE
+            Y.SIGN.DK = "D"
+            Y.AMT.D   = Y.AMOUNT
+            Y.AMT.C   = "0"
+        END
+
+        Y.INPUTTER = FIELD(Y.INPUTTER,"_",2)
+
+        GOSUB BUILD.ARRAY
+    NEXT Y.LOOP
+
+    GOSUB BUILD.FINAL
+
+    RETURN
+*-----------------------------------------------------------------------------
+BUILD.ARRAY:
+*-----------------------------------------------------------------------------
+
+    Y.OUT.TEMP  = Y.NO.SEQ
+    Y.OUT.TEMP := "*": Y.ID
+    Y.OUT.TEMP := "*": Y.SIGN.DK
+    Y.OUT.TEMP := "*": Y.TRANS.CODE
+    Y.OUT.TEMP := "*": Y.ACCOUNT.NO
+    Y.OUT.TEMP := "*": Y.PL.CATEG
+    Y.OUT.TEMP := "*": Y.AMT.C
+    Y.OUT.TEMP := "*": Y.AMT.D
+    Y.OUT.TEMP := "*": Y.NARRATIVE
+    Y.OUT.TEMP := "*": Y.CO.CODE
+    Y.OUT.TEMP := "*": Y.AUP.ID
+    Y.OUT.TEMP := "*": Y.INPUTTER
+    Y.OUT.TEMP := "*": Y.DATE
+
+    Y.OUT<-1> = Y.OUT.TEMP
+
+    RETURN
+*-----------------------------------------------------------------------------
+BUILD.FINAL:
+*-----------------------------------------------------------------------------
+
+    Y.OUTPUT = Y.OUT
+
+    RETURN
+*-----------------------------------------------------------------------------
+END
+
+
+
+

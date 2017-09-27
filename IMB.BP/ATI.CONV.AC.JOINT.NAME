@@ -1,0 +1,97 @@
+*-----------------------------------------------------------------------------
+* <Rating>-47</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ATI.CONV.AC.JOINT.NAME
+*-----------------------------------------------------------------------------
+* Developer Name     : ATI Mauizah Hasanah
+* Development Date   : 11 October 2016
+* Description        : Routine deal slip to show joint holder
+*-----------------------------------------------------------------------------
+* Modification History:-
+*-----------------------------------------------------------------------------
+* Date               : 20170329
+* Modified by        : ATI Yudiistia Adnan
+* Description        : Change cut joint name
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+    $INSERT I_F.ACCOUNT
+
+*-----------------------------------------------------------------------------
+MAIN:
+*-----------------------------------------------------------------------------
+    GOSUB INIT
+    GOSUB PROCESS
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+INIT:
+*-----------------------------------------------------------------------------
+
+    FN.ACCOUNT = "F.ACCOUNT"
+    F.ACCOUNT  = ""
+    CALL OPF(FN.ACCOUNT, F.ACCOUNT)
+
+    Y.APP      = "ACCOUNT"
+    Y.FLD.NAME = "ATI.AC.JOIN.FLG" :VM: "ATI.JOINT.NAME"
+    Y.POS      = ""
+    CALL MULTI.GET.LOC.REF(Y.APP, Y.FLD.NAME,Y.POS)
+    Y.ATI.AC.JOIN.FLG.POS = Y.POS<1,1>
+    Y.ATI.JOINT.NAME.POS  = Y.POS<1,2>
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+PROCESS:
+*-----------------------------------------------------------------------------
+
+
+    Y.ID.ACCOUNT = O.DATA
+    CALL F.READ(FN.ACCOUNT, Y.ID.ACCOUNT, R.ACCOUNT, F.ACCOUNT, ACCOUNT.ERR)
+    Y.JOINT.HOLDER.NAME = R.ACCOUNT<AC.LOCAL.REF, Y.ATI.JOINT.NAME.POS>
+
+    IF Y.JOINT.HOLDER.NAME THEN
+        CONVERT SM TO " " IN Y.JOINT.HOLDER.NAME
+*<20170329_Yudistia Adnan
+        Y.PRINT.JOINT.NAME = FMT(Y.JOINT.HOLDER.NAME, '35T')
+
+        CONVERT @TM TO FM IN Y.PRINT.JOINT.NAME
+
+*Y.LEN   = LEN(Y.JOINT.HOLDER.NAME)
+*Y.DIV   = Y.LEN / 35
+*Y.ROUND = DROUND(Y.DIV, 0) + 1
+*Y.POS   = 1
+
+*FOR YJNT = 1 TO Y.ROUND
+*Y.PRINT.JOINT.NAME<-1> = Y.JOINT.HOLDER.NAME[Y.POS, 35]
+
+*Y.POS += 35
+*NEXT YJNT
+*>20170329_Yudistia Adnan
+        O.DATA = Y.PRINT.JOINT.NAME<1> :"*": Y.PRINT.JOINT.NAME<2> :"*": Y.PRINT.JOINT.NAME<3> :"*": Y.PRINT.JOINT.NAME<4>
+    END ELSE
+        O.DATA = R.ACCOUNT<AC.ACCOUNT.TITLE.1>
+    END
+
+    RETURN
+*-----------------------------------------------------------------------------
+END
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

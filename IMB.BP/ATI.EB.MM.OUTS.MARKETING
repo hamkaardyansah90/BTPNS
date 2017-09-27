@@ -1,0 +1,103 @@
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ATI.EB.MM.OUTS.MARKETING(ENQ.DATA)
+*-----------------------------------------------------------------------------
+* Developer Name     : Yudistia Adnan
+* Development Date   : 20161006
+* Description        : Build routine for MM, only marketing user could access
+*-----------------------------------------------------------------------------
+* Modification History:-
+*-----------------------------------------------------------------------------
+* Date               :
+* Modified by        :
+* Description        :
+* No Log             :
+*-----------------------------------------------------------------------------
+    $INSERT ../T24_BP I_COMMON
+    $INSERT ../T24_BP I_EQUATE
+    $INSERT ../T24_BP I_ENQUIRY.COMMON
+    $INSERT ../T24_BP I_F.USER
+
+*-----------------------------------------------------------------------------
+MAIN:
+*-----------------------------------------------------------------------------
+
+    GOSUB INIT
+    GOSUB PROCESS
+
+    RETURN
+*-----------------------------------------------------------------------------
+INIT:
+*-----------------------------------------------------------------------------
+    Y.APPLICATION = "USER"
+    Y.FIELD.NAME  = "MARKETING.CODE"
+    Y.FIELD.POS   = ""
+
+    CALL MULTI.GET.LOC.REF(Y.APPLICATION, Y.FIELD.NAME, Y.FIELD.POS)
+    Y.MARKETING.CODE.POS = Y.FIELD.POS<1,1>
+
+    Y.POS = DCOUNT(ENQ.DATA<2>, @VM)
+
+    RETURN
+*-----------------------------------------------------------------------------
+PROCESS:
+*-----------------------------------------------------------------------------
+    Y.USER.MARKETING.CODE  = R.USER<EB.USE.LOCAL.REF, Y.MARKETING.CODE.POS>
+    Y.USER.DEPARTMENT.CODE = R.USER<EB.USE.DEPARTMENT.CODE>
+
+    FIND "MARKETING.CODE" IN ENQ.SELECTION<2> SETTING AF, AV THEN
+        Y.SEL.MARKETING.CODE = ENQ.SELECTION<4,AV>
+
+        IF (LEN(Y.SEL.MARKETING.CODE) NE 8) THEN
+            ENQ.ERROR = "Kode Marketing Harus 8 digit"
+        END
+    END
+
+    IF Y.USER.MARKETING.CODE NE "" THEN
+
+        IF Y.SEL.MARKETING.CODE NE Y.USER.MARKETING.CODE AND Y.SEL.MARKETING.CODE NE "" THEN
+            ENQ.ERROR = "Kode Marketing Tidak Sesuai"
+        END ELSE
+            Y.POS += 1
+            ENQ.DATA<2, Y.POS> = "MARKETING.CODE"
+            ENQ.DATA<3, Y.POS> = "EQ"
+            ENQ.DATA<4, Y.POS> = Y.USER.MARKETING.CODE
+        END
+
+    END ELSE
+        IF Y.SEL.MARKETING.CODE EQ "" THEN
+            ENQ.ERROR = "*Kode Marketing Mandatory"
+            RETURN
+        END
+    END
+
+    IF (LEN(Y.USER.DEPARTMENT.CODE) EQ 6) AND (Y.USER.DEPARTMENT.CODE[1,2] EQ '12') THEN
+        Y.POS += 1
+        ENQ.DATA<2, Y.POS> = "MIS.ACCT.OFFICER"
+        ENQ.DATA<3, Y.POS> = "EQ"
+        ENQ.DATA<4, Y.POS> = Y.USER.DEPARTMENT.CODE
+    END
+
+
+    RETURN
+*-----------------------------------------------------------------------------
+END
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

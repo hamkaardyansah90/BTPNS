@@ -1,0 +1,89 @@
+*-----------------------------------------------------------------------------
+* <Rating>17</Rating>
+*-----------------------------------------------------------------------------
+* Environment variable
+*
+* ATI_LOG_LEVEL -> to set level of logging , 0 : disable, 1 : error, 2 : info, 3 : debug
+* ATI_LOG_FILE -> to write log in seperate file (for each process id and program)
+* ATI_LOG_STACK -> to show stack call in log file
+*
+    SUBROUTINE ATI.LOG(LOG_TYPE,LOG_MSG)
+
+    $INSERT I_F.USERSTAT
+
+    LEVEL.ENV = GETENV("ATI_LOG_LEVEL",LOG.LEVEL)
+    IF LEVEL.ENV EQ 0 THEN
+        RETURN
+    END
+
+    GOSUB INITIALISE
+    GOSUB GET.USER.INFO
+    IF LOG.CALL.STACK NE 0 THEN
+       GOSUB GET.CALL.STACK
+    END
+    GOSUB WRITE.TO.FILE
+*--------INITIALISE--------
+INITIALISE:
+    IF LOG_TYPE NE "ERROR" AND LOG_TYPE NE "INFO" THEN
+        LOG_TYPE = "DEBUG"
+    END
+    LOG.CALL.STACK = 0
+    LOG.STACK = GETENV("ATI_LOG_STACK",LOG.CALL.STACK)
+    CALL.STACK = ""
+    RETURN
+
+*-------GET USER INFO--------
+GET.USER.INFO:
+    USERINFO = @USERSTATS
+    PROC.INFO = ""
+    PROC.INFO = "["
+    PROC.INFO := USERINFO<USER_PROC_PID> : "@" : USERINFO<USER_PROC_ACCOUNT> : ":" : USERINFO<USER_PROC_PORT_NUMBER>
+    PROC.INFO := "-" : USERINFO<USER_PROC_PROGRAM,2>
+    PROC.INFO := "]"
+
+    LOG.PROC.FILE = ""
+    FILE.ENV = GETENV("ATI_LOG_FILE",LOG.PROC.FILE)
+    LOG.FILE = "GLOBAL.LOG"
+
+    IF LOG.PROC.FILE EQ "TRUE" THEN
+        LOG.FILE = USERINFO<USER_PROC_PROGRAM,2> : "_" : USERINFO<USER_PROC_PID> : "_" : USERINFO<USER_PROC_ACCOUNT> : "_" : USERINFO<USER_PROC_PORT_NUMBER>: ".LOG"
+    END
+
+    RETURN
+*--------GET CALL STACK------
+GET.CALL.STACK:
+
+    STACK.INFO = SYSTEM(1029)
+    STACKLEN = DCOUNT(STACK.INFO,@VM)
+
+    CALL.STACK = ""
+    FOR I=STACKLEN TO 1 STEP -1
+        IF STACK.INFO<1,I,4> NE "ATI.LOG" THEN
+            CALL.STACK := STACK.INFO<1,I,4> : ":" : STACK.INFO<1,I,3> : ">"
+        END
+    NEXT I
+
+    RETURN
+*--------WRITE TO FILE-------
+WRITE.TO.FILE:
+    OPENSEQ "LOG",LOG.FILE TO F.IN ELSE CREATE F.IN ELSE
+        ABORT
+    END
+
+    LOG.TXT = ""
+    LOG.TXT = "[" : LOG_TYPE : "]"
+    LOG.TXT := PROC.INFO
+    LOG.TXT := "[": TIMEDATE() : "-" : TIMESTAMP() : "]"
+    LOG.TXT := CALL.STACK : " " : LOG_MSG
+    SEEK F.IN,0,2 THEN
+        WRITESEQF LOG.TXT TO F.IN ELSE
+            STOP
+        END
+    END
+    WEOFSEQ F.IN
+    CLOSESEQ F.IN
+    RETURN
+*----------------------------
+END
+
+

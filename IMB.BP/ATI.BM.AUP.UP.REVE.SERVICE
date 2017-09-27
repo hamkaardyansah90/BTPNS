@@ -1,0 +1,71 @@
+*-----------------------------------------------------------------------------
+* <Rating>-41</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ATI.BM.AUP.UP.REVE.SERVICE(Y.BATCH.ID)
+*-----------------------------------------------------------------------------
+* Developer Name     : ATI-Yudistia Adnan
+* Development Date   : 20170327
+* Description        : Batch Routine Multi for reverse job
+*-----------------------------------------------------------------------------
+* Modification History:-
+*-----------------------------------------------------------------------------
+* Date            Modified by                Description
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_BATCH.FILES
+    $INSERT I_F.ATI.TT.AUP.REVE.SERVICE.TEMP
+    $INSERT I_ATI.BM.AUP.UP.REVE.SERVICE.COMMON
+
+*-----------------------------------------------------------------------------
+MAIN:
+*-----------------------------------------------------------------------------
+    GOSUB INIT
+    GOSUB PROCESS
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+INIT:
+*-----------------------------------------------------------------------------
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+PROCESS:
+*-----------------------------------------------------------------------------
+    CALL F.READ(FN.ATI.TT.AUP.REVE.SERVICE.TEMP, Y.BATCH.ID, R.ATI.TT.AUP.REVE.SERVICE.TEMP, F.ATI.TT.AUP.REVE.SERVICE.TEMP, ERR.ATI.TT.AUP.REVE.SERVICE.TEMP)
+    Y.OFS.MESSAGE = R.ATI.TT.AUP.REVE.SERVICE.TEMP
+
+    GOSUB REVERSE.SERVICE
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+REVERSE.SERVICE:
+*-----------------------------------------------------------------------------
+    Y.OFS.SOURCE = "GENERIC.OFS.PROCESS"
+
+    CALL OFS.CALL.BULK.MANAGER(Y.OFS.SOURCE, Y.OFS.MESSAGE, Y.OFS.RESPONSE, Y.TXN.RESULT)
+
+*-CHECK RESPONSE CODE-----------------------------------------------------------------
+    Y.RESPONSE.CODE = FIELD(FIELD(Y.OFS.RESPONSE,"/",3,1), ",", 1)
+
+    IF Y.RESPONSE.CODE EQ "1" THEN
+        CALL F.DELETE(FN.ATI.TT.AUP.REVE.SERVICE.TEMP, Y.BATCH.ID)
+    END
+
+    RETURN
+*-----------------------------------------------------------------------------
+END
+
+
+
+
+
+
+
+
+
+
+

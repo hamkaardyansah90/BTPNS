@@ -1,0 +1,237 @@
+*-----------------------------------------------------------------------------
+* <Rating>58</Rating>
+* 18:00:19 20 SEP 2016 
+* CBS-APP1-JKT/t24sit 
+*-----------------------------------------------------------------------------
+    SUBROUTINE ATI.BM.EXT.REPORT.SPLIT.SELECT
+*-----------------------------------------------------------------------------
+* Developer Name    : YEM
+* Development Date  : 20160908
+* Description       : Extract Report Breakdown Record Multivalue
+*-----------------------------------------------------------------------------
+* Modification History:-
+*-----------------------------------------------------------------------------
+* Date               : 20160908
+* Modified by        : Fatkhur Rohman
+* Description        : Integrating to BTPNS DTUR Summary
+*-----------------------------------------------------------------------------
+
+    $INSERT I_EQUATE
+    $INSERT I_COMMON
+    $INSERT I_BATCH.FILES
+    $INSERT I_TSA.COMMON
+    $INSERT I_F.ATI.TH.EXT.REPORT
+    $INSERT I_F.DATES
+    $INSERT I_ATI.BM.EXT.REPORT.SPLIT.COMMON
+
+*-----------------------------------------------------------------------------
+MAIN:
+*-----------------------------------------------------------------------------
+
+    GOSUB INIT
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+INIT:
+*-----------------------------------------------------------------------------
+    CONVERT SM TO FM IN Y.BATCH.DETAILS
+
+    PROCESS.GOAHEAD = ""
+    IF CONTROL.LIST EQ "" THEN
+        CONTROL.LIST = Y.BATCH.DETAILS :FM: "FINAL.WRITE"
+    END
+    Y.CONTROL.LIST.FUNCTION = CONTROL.LIST<1,1>
+
+    LIST.PARAM = ""
+    SEL.CMD    = ""
+    SEL.LIST   = ""
+
+    Y.SYS.DATE      = ''
+    Y.SYS.DATE      = OCONV(DATE(),"D-")
+
+    Y.SYS.DATE.VAL  = Y.SYS.DATE[7,4]:Y.SYS.DATE[1,2]:Y.SYS.DATE[4,2]
+
+    BEGIN CASE
+    CASE Y.CONTROL.LIST.FUNCTION EQ "FINAL.WRITE"
+        GOSUB FINAL.WRITE
+    CASE OTHERWISE
+        GOSUB PROCESS
+    END CASE
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+PROCESS:
+*-----------------------------------------------------------------------------
+    Y.ID.EXT.REP = CONTROL.LIST<1,1>
+    GOSUB GET.DATA.EXT.REP
+
+    IF (Y.BDOWN.COLUMN) THEN
+        FN.APP = 'F.ATI.EXT.REP.':Y.ID.EXT.REP:'.TEMP'
+        F.APP  = ''
+        CALL OPF(FN.APP,F.APP)
+
+        FN.FOLDER = Y.FOLDER
+        F.FOLDER  = ''
+        OPEN FN.FOLDER TO F.FOLDER ELSE
+            Y.EXEC.CMD = 'CREATE.FILE ':FN.FOLDER:' TYPE=UD'
+            EXECUTE Y.EXEC.CMD
+            OPEN FN.FOLDER TO F.FOLDER ELSE
+                RETURN
+            END
+        END
+
+        GOSUB DELETE.FILE
+
+*LIST.PARAM<1> = ""
+*LIST.PARAM<2> = FN.APP
+*LIST.PARAM<3> = SEL.CMD
+*LIST.PARAM<6> = ""
+*LIST.PARAM<7> = ""
+*
+*CALL BATCH.BUILD.LIST(LIST.PARAM,"")
+
+        SEL.CMD  = "QSELECT ":FN.APP:" *"
+        CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,ERR)
+    END
+
+    CALL BATCH.BUILD.LIST("",SEL.LIST)
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+FINAL.WRITE:
+*-----------------------------------------------------------------------------
+    Y.CNT.BATCH.DATA = DCOUNT(Y.BATCH.DETAILS,FM)
+    FOR YLOOP = 1 TO Y.CNT.BATCH.DATA
+        Y.ID.EXT.REP = Y.BATCH.DETAILS<YLOOP>
+        GOSUB GET.DATA.EXT.REP
+
+        IF (Y.BDOWN.COLUMN) THEN
+            FN.FOLDER = Y.FOLDER
+            F.FOLDER  = ''
+            OPEN FN.FOLDER TO F.FOLDER ELSE
+                Y.EXEC.CMD = 'CREATE.FILE ':FN.FOLDER:' TYPE=UD'
+                EXECUTE Y.EXEC.CMD
+                OPEN FN.FOLDER TO F.FOLDER ELSE
+                    RETURN
+                END
+            END
+
+            FN.EXT.TEMP = 'F.ATI.EXT.REP.':Y.ID.EXT.REP:'.BDOWN.TEMP'
+            F.EXT.TEMP  = ''
+            CALL OPF(FN.EXT.TEMP,F.EXT.TEMP)
+
+            Y.EXT.TEMP.CMD = "SELECT ":FN.EXT.TEMP
+            CALL EB.READLIST(Y.EXT.TEMP.CMD,Y.EXT.TEMP.LIST,"",Y.EXT.TEMP.CNT,Y.EXT.TEMP.ERR)
+
+            FOR I = 1 TO Y.EXT.TEMP.CNT
+                Y.AGENT.NO = FIELD(Y.EXT.TEMP.LIST<I>,'-',1)
+                CHANGE '!AGENT.NUMBER' TO Y.AGENT.NO IN Y.FILENAME
+
+                IF Y.SPLIT.FILE EQ 'YES' THEN
+                    Y.FILENAME.NEW = Y.FILENAME:'_':Y.EXT.TEMP.LIST<I>
+                    GOSUB WRITE.TEXTFILE
+                END ELSE
+                    Y.FILENAME.NEW = Y.FILENAME
+                    GOSUB WRITE.TEXTFILE
+                END
+
+                CALL F.READ(FN.FILE.EXT,Y.ID.EXT.REP,R.FILE.EXT,F.FILE.EXT,FILE.EXT.ERR)
+                FIND Y.FILENAME.NEW IN R.FILE.EXT SETTING POSF.FILE ELSE
+                    R.FILE.EXT<-1> = Y.FILENAME.NEW
+                END
+                CALL F.WRITE(FN.FILE.EXT,Y.ID.EXT.REP,R.FILE.EXT)
+
+            NEXT I
+        END
+
+    NEXT YLOOP
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+WRITE.TEXTFILE:
+*-----------------------------------------------------------------------------
+    OPENSEQ FN.FOLDER, Y.FILENAME.NEW TO F.FOLDER ELSE
+        CREATE F.FOLDER THEN
+        END
+    END
+
+    CALL F.READ(FN.EXT.TEMP,Y.EXT.TEMP.LIST<I>,R.EXT.TEMP,F.EXT.TEMP,EXT.TEMP.ERR)
+    Y.CNT.REC.DATA = DCOUNT(R.EXT.TEMP,FM)
+
+    FOR YLOOP3 = 1 TO Y.CNT.REC.DATA
+        WRITESEQ R.EXT.TEMP<YLOOP3> APPEND TO F.FOLDER ELSE
+            CRT 'FILE WRITE ERROR'
+            STOP
+        END
+    NEXT YLOOP3
+
+    WEOFSEQ F.FOLDER
+    CLOSESEQ F.FOLDER
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+GET.DATA.EXT.REP:
+*-----------------------------------------------------------------------------
+    CALL F.READ(FN.ID.REP,Y.ID.EXT.REP,R.ID.REP,F.ID.REP,REP.ERR)
+    Y.FOLDER       = R.ID.REP<EXT.REP.OUTPUT.DIR>
+    Y.FILENAME     = R.ID.REP<EXT.REP.TARGET.FILE>
+    Y.SPLIT.FILE   = R.ID.REP<EXT.REP.SPLIT.FILE>
+
+    Y.BDOWN.COLUMN   = R.ID.REP<EXT.REP.LOCAL.REF, Y.BREAKDOWN.COL.POS>
+    Y.BDOWN.SEP      = R.ID.REP<EXT.REP.LOCAL.REF, Y.BREAKDOWN.SEP.POS>
+    Y.BDOWN.ASSOC    = R.ID.REP<EXT.REP.LOCAL.REF, Y.BREAKDOWN.ASSC.POS>
+
+
+    CHANGE '!TODAY' TO R.DATES(EB.DAT.TODAY) IN Y.FILENAME
+    CHANGE '!LAST.WORKING.DAY' TO R.DATES(EB.DAT.LAST.WORKING.DAY) IN Y.FILENAME
+    CHANGE '!NEXT.WORKING.DAY' TO R.DATES(EB.DAT.NEXT.WORKING.DAY) IN Y.FILENAME
+    CHANGE '!USER' TO OPERATOR IN Y.FILENAME
+    CHANGE '!LOCAL.CCY' TO LCCY IN Y.FILENAME
+    CHANGE '!LANGUAGE' TO LNGG IN Y.FILENAME
+    CHANGE '!COMPANY' TO ID.COMPANY IN Y.FILENAME
+    CHANGE '!SYSTEM.DATE' TO Y.SYS.DATE.VAL IN Y.FILENAME
+    CHANGE '!SERVER.NAME' TO SYSTEM(50) IN Y.FILENAME
+
+    CHANGE '!TODAY' TO R.DATES(EB.DAT.TODAY) IN Y.FOLDER
+    CHANGE '!LAST.WORKING.DAY' TO R.DATES(EB.DAT.LAST.WORKING.DAY) IN Y.FOLDER
+    CHANGE '!NEXT.WORKING.DAY' TO R.DATES(EB.DAT.NEXT.WORKING.DAY) IN Y.FOLDER
+    CHANGE '!USER' TO OPERATOR IN Y.FOLDER
+    CHANGE '!LOCAL.CCY' TO LCCY IN Y.FOLDER
+    CHANGE '!LANGUAGE' TO LNGG IN Y.FOLDER
+    CHANGE '!COMPANY' TO ID.COMPANY IN Y.FOLDER
+    CHANGE '!SYSTEM.DATE' TO Y.SYS.DATE.VAL IN Y.FOLDER
+    CHANGE '!SERVER.NAME' TO SYSTEM(50) IN Y.FOLDER
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+DELETE.FILE:
+*-----------------------------------------------------------------------------
+    CALL F.READ(FN.FILE.EXT,Y.ID.EXT.REP,R.FILE.EXT,F.FILE.EXT,FILE.EXT.ERR)
+    Y.CNT.FILE = DCOUNT(R.FILE.EXT,FM)
+
+    FOR YLOOP1 = 1 TO Y.CNT.FILE
+        Y.CURRENT.FILE = R.FILE.EXT<YLOOP1>
+        DELETE F.FOLDER, Y.CURRENT.FILE
+    NEXT YLOOP1
+
+    DELETE F.FILE.EXT,Y.ID.EXT.REP
+
+    FN.EXT.TEMP = 'F.ATI.EXT.REP.':Y.ID.EXT.REP:'.BDOWN.TEMP'
+    F.EXT.TEMP  = ''
+    CALL OPF(FN.EXT.TEMP,F.EXT.TEMP)
+
+    CLEARFILE F.EXT.TEMP
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+END
+
+
+

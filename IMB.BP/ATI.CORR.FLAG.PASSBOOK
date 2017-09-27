@@ -1,0 +1,29 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    PROGRAM ATI.CORR.FLAG.PASSBOOK
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+    $INSERT I_F.ACCOUNT
+
+    FN.ACCT = 'FBNK.ACCOUNT'
+    F.ACCT  = ''
+    CALL OPF(FN.ACCT,F.ACCT)
+
+    PRINT 'Input Data Rekening Passbook No'
+    INPUT Y.ID.ACCT
+
+    CALL F.READ(FN.ACCT,Y.ID.ACCT,R.ACCT,F.ACCT,ERR.ACCT)
+    IF R.ACCT NE '' THEN
+        R.ACCT<AC.PASSBOOK> = 'Y'
+        WRITE R.ACCT TO F.ACCT,Y.ID.ACCT
+        PRINT 'Field telah dilakukan modifikasi, Silahkan dicheck kembali'
+    END ELSE
+        PRINT 'Data Rekening Passbook No Tidak Ditemukan/Salah'
+    END
+END
+
+
+
+

@@ -1,0 +1,334 @@
+*-----------------------------------------------------------------------------
+* <Rating>150</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ATI.NOFILE.AC.GIRO.MARKETING(Y.OUTPUT)
+*-----------------------------------------------------------------------------
+* Developer Name     : Yudistia Adnan
+* Development Date   : 20161006
+* Description        : Copy from routine NOFILE.IDC.GIRO.ACC and Add MARKETING.CODE
+*-----------------------------------------------------------------------------
+* Modification History:-
+*-----------------------------------------------------------------------------
+* Date               :
+* Modified by        :
+* Description        :
+* No Log             :
+*-----------------------------------------------------------------------------
+
+    $INSERT ../T24_BP I_COMMON
+    $INSERT ../T24_BP I_EQUATE
+    $INSERT ../T24_BP I_ENQUIRY.COMMON
+    $INSERT ../T24_BP I_F.ACCOUNT
+    $INSERT ../T24_BP I_F.COMPANY
+    $INSERT ../T24_BP I_F.CATEGORY
+    $INSERT ../T24_BP I_F.CUSTOMER
+    $INSERT ../T24_BP I_F.ACCT.ACTIVITY
+    $INSERT ../T24_BP I_F.USER
+*-----------------------------------------------------------------------------
+MAIN:
+*-----------------------------------------------------------------------------
+
+    GOSUB INIT
+    GOSUB SELECTION
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+INIT:
+*-----------------------------------------------------------------------------
+    Y.ACC.COND   = ""
+    Y.CATEG.COND = ""
+    Y.CCY.COND   = ""
+    Y.COMP.IN    = ""
+
+    FN.ACCOUNT = "F.ACCOUNT"
+    F.ACCOUNT  = ""
+    CALL OPF(FN.ACCOUNT, F.ACCOUNT)
+
+    FN.CUSTOMER = "F.CUSTOMER"
+    F.CUSTOMER  = ""
+    CALL OPF(FN.CUSTOMER, F.CUSTOMER)
+
+    FN.CATEGORY = "F.CATEGORY"
+    F.CATEGORY  = ""
+    CALL OPF(FN.CATEGORY, F.CATEGORY)
+
+    FN.COMPANY = "F.COMPANY"
+    F.COMPANY  = ""
+    CALL OPF(FN.COMPANY,F.COMPANY)
+
+    FN.ACCT.ACTIVITY = "F.ACCT.ACTIVITY"
+    F.ACCT.ACTIVITY  = ""
+    CALL OPF(FN.ACCT.ACTIVITY, F.ACCT.ACTIVITY)
+
+    Y.APP.NAME = "ACCOUNT":FM:"USER"
+    Y.FLD.NAME = "MARKETING.CODE":VM:"ATI.JOINT.NAME":FM:"MARKETING.CODE"
+    Y.POS      = ""
+    CALL MULTI.GET.LOC.REF(Y.APP.NAME,Y.FLD.NAME, Y.POS)
+
+    Y.ACC.MARKETING.CODE.POS  = Y.POS<1,1>
+    Y.ACC.ATI.JOINT.NAME.POS  = Y.POS<1,2>
+    Y.USER.MARKETING.CODE.POS = Y.POS<2,1>
+
+    Y.USER.DEPARTMENT.CODE = R.USER<EB.USE.DEPARTMENT.CODE>
+    Y.USER.MARKETING.CODE  = R.USER<EB.USE.LOCAL.REF, Y.USER.MARKETING.CODE.POS>
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+SELECTION:
+*-----------------------------------------------------------------------------
+
+
+    FIND "NF.MARKETING.CODE" IN ENQ.SELECTION<2> SETTING AF, AV THEN
+        Y.SEL.MARKETING.CODE = ENQ.SELECTION<4,AV>
+
+        IF (LEN(Y.SEL.MARKETING.CODE) NE 8) THEN
+            ENQ.ERROR = "Kode Marketing Harus 8 digit"
+
+            RETURN
+        END
+    END
+
+    IF Y.USER.MARKETING.CODE NE "" THEN
+        IF Y.SEL.MARKETING.CODE NE Y.USER.MARKETING.CODE AND Y.SEL.MARKETING.CODE NE "" THEN
+            ENQ.ERROR = "Kode Marketing Tidak Sesuai"
+
+            RETURN
+        END ELSE
+            SEL.CMD = "SELECT " : FN.ACCOUNT : " WITH (CUSTOMER NE '' ) AND (MARKETING.CODE EQ '" : Y.USER.MARKETING.CODE : "')"
+        END
+
+    END ELSE
+        IF Y.SEL.MARKETING.CODE EQ "" THEN
+            ENQ.ERROR = "*Kode Marketing Mandatory"
+
+            RETURN
+        END ELSE
+            SEL.CMD = "SELECT " : FN.ACCOUNT : " WITH (CUSTOMER NE '' ) AND (MARKETING.CODE EQ '" : Y.SEL.MARKETING.CODE : "')"
+        END
+    END
+
+    FIND 'NF.ACC.NO' IN ENQ.SELECTION<2> SETTING AF, AV THEN
+        Y.NF.AC.NO.DATA  = ENQ.SELECTION<4,AV>
+        SEL.CMD         := " AND @ID EQ " : Y.NF.AC.NO.DATA
+    END
+
+    FIND 'NF.CATEGORY' IN ENQ.SELECTION<2> SETTING AF, AV THEN
+        Y.NF.CATEGORY.DATA  = ENQ.SELECTION<4,AV>
+        SEL.CMD            := " AND CATEGORY EQ " : Y.NF.CATEGORY.DATA
+    END
+
+    FIND 'NF.CURRENCY' IN ENQ.SELECTION<2> SETTING AF, AV THEN
+        Y.NF.CURRENCY.DATA  = ENQ.SELECTION<4,AV>
+        SEL.CMD            := " AND CURRENCY EQ " : Y.NF.CURRENCY.DATA
+    END
+
+*-Selection condition----------------------------------------------------
+    IF ID.COMPANY NE "ID0010001" THEN
+        SEL.CMD := " AND CO.CODE EQ " : ID.COMPANY
+    END
+    ELSE
+        FIND 'NF.CO.CODE' IN ENQ.SELECTION<2> SETTING AF, AV THEN
+            Y.NF.CO.CODE.DATA  = ENQ.SELECTION<4,AV>
+            SEL.CMD     := " AND CO.CODE EQ " : Y.NF.CO.CODE.DATA
+        END
+    END
+
+    IF R.USER<EB.USE.DEPARTMENT.CODE> NE '20' THEN
+        SEL.CMD := " AND (CONFIDENTIAL EQ 'N' OR CONFIDENTIAL EQ '')"
+    END
+
+    IF (LEN(Y.USER.DEPARTMENT.CODE) EQ 6) AND (Y.USER.DEPARTMENT.CODE[1,2] EQ '12') THEN
+        SEL.CMD := " AND (ACCOUNT.OFFICER EQ '":Y.USER.DEPARTMENT.CODE:"')"
+    END
+
+    IF Y.NF.CATEGORY.DATA EQ "" THEN
+        SEL.CMD := " AND (CATEGORY EQ '2102' OR (CATEGORY GE '1000' AND CATEGORY LT '2999'))"
+    END
+
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.ACC,'')
+
+    GOSUB PROCESS
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+PROCESS:
+*-----------------------------------------------------------------------------
+    FOR I = 1 TO NO.OF.ACC
+        Y.ACCOUNT.ID = SEL.LIST<I>
+        Y.CONNECTOR  = ':'
+        Y.SEPARAT    = '-'
+
+        CALL F.READ(FN.ACCOUNT, Y.ACCOUNT.ID, R.ACCOUNT, F.ACCOUNT, ERR.ACCOUNT)
+
+        Y.AC.MARKETING.CODE = R.ACCOUNT<AC.LOCAL.REF, Y.ACC.MARKETING.CODE.POS>
+        Y.AC.DATE.TIME      = R.ACCOUNT<AC.DATE.TIME>
+        Y.AC.CO.CODE        = R.ACCOUNT<AC.CO.CODE>
+*<20170330_Yudistia Adnan
+        Y.AC.JOINT.NAME     = R.ACCOUNT<AC.LOCAL.REF, Y.ACC.ATI.JOINT.NAME.POS>
+
+        IF Y.AC.JOINT.NAME EQ "" THEN
+            Y.AC.JOINT.NAME = R.ACCOUNT<AC.SHORT.TITLE>
+        END
+
+        CONVERT SM TO "#" IN Y.AC.JOINT.NAME
+*>20170330_Yudistia Adnan
+        Y.AC.CATEGORY       = R.ACCOUNT<AC.CATEGORY>
+        Y.AC.OPENING.DATE   = R.ACCOUNT<AC.OPENING.DATE>
+        Y.AC.CURRENCY       = R.ACCOUNT<AC.CURRENCY>
+        Y.AC.CUSTOMER       = R.ACCOUNT<AC.CUSTOMER>
+        Y.OPEN.DATE         = Y.AC.OPENING.DATE[7,2] : Y.SEPARAT : Y.AC.OPENING.DATE[5,2] : Y.SEPARAT : Y.AC.OPENING.DATE[1,4]
+        Y.TIME              = Y.AC.DATE.TIME[7,2] : Y.CONNECTOR : Y.AC.DATE.TIME[9,2]
+
+        CALL F.READ(FN.CATEG, Y.AC.CATEGORY, R.CATEGORY, F.CATEGORY, ERR.CATEGORY)
+        Y.CAT.DESCRIPTION = R.CATEGORY<EB.CAT.DESCRIPTION>
+
+        CALL F.READ(FN.CUSTOMER, Y.AC.CUSTOMER, R.CUSTOMER, F.CUSTOMER, ERR.CUSTOMER)
+        Y.CUS.STREET = R.CUSTOMER<EB.CUS.STREET>
+
+        Y.THIS.MONTH = TODAY[1,4]:TODAY[5,2]
+        Y.PREV.MONTH = Y.THIS.MONTH - 1
+
+        IF Y.PREV.MONTH[5,2] EQ '00' THEN
+            Y.PREV.MONTH = TODAY[1,4] - 1 : '12'
+        END
+
+        Y.ACCT.ACTIVITY.ID = Y.ACCOUNT.ID:'-':TODAY[1,4]:TODAY[5,2]
+
+        CALL F.READ(FN.ACCT.ACTIVITY, Y.ACCT.ACTIVITY.ID, R.ACCT.ACTIVITY, F.ACCT.ACTIVITY, ERR.ACCT.ACTIVITY)
+        Y.DATE.DAY        = TODAY[7,2]
+        Y.DAY.NO.LIST     = R.ACCT.ACTIVITY<IC.ACT.DAY.NO>
+        Y.DAY.NO.POS      = ""
+        Y.DAY.NO.PREV.POS = ""
+        Y.TURNOVER.CREDIT = ""
+        Y.TURNOVER.DEBIT  = ""
+        Y.ACTUAL.BAL      = ""
+        Y.ON.ACT.BAL      = ""
+
+        IF Y.DAY.NO.POS GT 1 THEN
+            Y.DAY.NO.PREV.POS = Y.DAY.NO.POS - 1
+            Y.ACTUAL.BAL        = R.ACCT.ACTIVITY<IC.ACT.BALANCE><1,Y.DAY.NO.PREV.POS>
+        END
+        ELSE
+            GOSUB GET.ACTUAL.BAL
+        END
+
+        IF Y.ACTUAL.BAL EQ "" THEN
+            Y.ACTUAL.BAL = R.ACCOUNT<AC.OPEN.ACTUAL.BAL>
+        END
+
+        DAY.NO.NOW = R.ACCT.ACTIVITY<IC.ACT.DAY.NO><1,Y.DAY.NO.POS>
+
+        IF DAY.NO.NOW EQ Y.DATE.DAY THEN
+            Y.TURNOVER.CREDIT  = R.ACCT.ACTIVITY<IC.ACT.TURNOVER.CREDIT><1,Y.DAY.NO.POS>
+            Y.TURNOVER.DEBIT   = R.ACCT.ACTIVITY<IC.ACT.TURNOVER.DEBIT><1,Y.DAY.NO.POS>
+            Y.ON.ACT.BAL       = R.ACCT.ACTIVITY<IC.ACT.BALANCE><1,Y.DAY.NO.POS>
+        END ELSE
+            Y.ON.ACT.BAL = Y.ACTUAL.BAL
+        END
+
+        Y.ALT.ACCT.ID = R.ACCOUNT<AC.ALT.ACCT.ID>
+
+        GOSUB CHECK.AMT
+        GOSUB WRITE.LIST
+
+    NEXT I
+
+    RETURN
+*-----------------------------------------------------------------------------
+GET.ACTUAL.BAL:
+*-----------------------------------------------------------------------------
+    IF Y.DAY.NO.POS EQ '' THEN
+        Y.MAX.DAY = DCOUNT(Y.DAY.NO.LIST,@VM)
+
+        IF Y.MAX.DAY GE 1 THEN
+            Y.ACTUAL.BAL = R.ACCT.ACTIVITY<IC.ACT.BALANCE><1,Y.MAX.DAY>
+        END
+        ELSE
+            GOSUB GET.PREV.MONTH
+        END
+    END
+    ELSE
+        GOSUB GET.PREV.MONTH
+    END
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+CHECK.AMT:
+*-----------------------------------------------------------------------------
+    IF ACTUAL.BAL EQ '' THEN
+        ACTUAL.BAL = 0
+    END
+
+    IF Y.TURNOVER.DEBIT '' THEN
+        Y.TURNOVER.DEBIT = 0
+    END
+    IF Y.TURNOVER.CREDIT EQ '' THEN
+        Y.TURNOVER.CREDIT = 0
+    END
+
+    IF Y.ON.ACT.BAL EQ '' THEN
+        Y.ON.ACT.BAL = 0
+    END
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+WRITE.LIST:
+*-----------------------------------------------------------------------------
+    Y.OUTPUT.LIST  = Y.TIME
+    Y.OUTPUT.LIST := '*':Y.AC.CO.CODE
+    Y.OUTPUT.LIST := '*':Y.ACCOUNT.ID
+    Y.OUTPUT.LIST := '*':Y.ALT.ACCT.ID
+    Y.OUTPUT.LIST := '*':Y.AC.JOINT.NAME
+    Y.OUTPUT.LIST := '*':Y.CUS.STREET
+    Y.OUTPUT.LIST := '*':Y.ACTUAL.BAL
+    Y.OUTPUT.LIST := '*':ABS(Y.TURNOVER.DEBIT)
+    Y.OUTPUT.LIST := '*':ABS(Y.TURNOVER.CREDIT)
+    Y.OUTPUT.LIST := '*':Y.ON.ACT.BAL
+    Y.OUTPUT.LIST := '*':Y.OPEN.DATE
+    Y.OUTPUT.LIST := '*':Y.CAT.DESCRIPTION
+    Y.OUTPUT.LIST := '*':Y.AC.CURRENCY
+    Y.OUTPUT.LIST := '*':Y.AC.CUSTOMER
+    Y.OUTPUT.LIST := '*':Y.AC.MARKETING.CODE
+
+    Y.OUTPUT<-1> = Y.OUTPUT.LIST
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+GET.PREV.MONTH:
+*-----------------------------------------------------------------------------
+    Y.ACCT.ACT.PREV.ID = Y.ACCOUNT.ID:'-': Y.PREV.MONTH
+
+    CALL F.READ(FN.ACCT.ACTIVITY, Y.ACCT.ACT.PREV.ID, R.ACCT.ACTIVITY.PREV, F.ACCT.ACTIVITY, ERR.ACCT.ACTIVITY)
+
+    Y.DAY.NO.PREV.POS = DCOUNT(R.ACCT.ACTIVITY.PREV<IC.ACT.DAY.NO>,@VM)
+    ACTUAL.BAL        = R.ACCT.ACTIVITY.PREV<IC.ACT.BALANCE><1,Y.DAY.NO.PREV.POS>
+
+    RETURN
+*-----------------------------------------------------------------------------
+END
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

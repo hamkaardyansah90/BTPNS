@@ -1,0 +1,110 @@
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ATI.DSF.FT.SKN.OUT.SEN.NAME(Y.DATA)
+*-----------------------------------------------------------------------------
+* Developer Name     : Yudistia Adnan
+* Development Date   : 07 April 2017
+* Description        : Routine deal slip to show joint holder on FT
+*-----------------------------------------------------------------------------
+* Modification History:-
+*-----------------------------------------------------------------------------
+* Date               :
+* Modified by        :
+* Description        :
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.FUNDS.TRANSFER
+    $INSERT I_F.VERSION
+    $INSERT I_F.DEAL.SLIP.FORMAT
+*-----------------------------------------------------------------------------
+MAIN:
+*-----------------------------------------------------------------------------
+    GOSUB INIT
+    GOSUB PROCESS
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+INIT:
+*-----------------------------------------------------------------------------
+
+    FN.FUNDS.TRANSFER = "F.FUNDS.TRANSFER"
+    F.FUNDS.TRANSFER  = ""
+    CALL OPF(FN.FUNDS.TRANSFER, F.FUNDS.TRANSFER)
+
+    FN.FUNDS.TRANSFER.NAU = "F.FUNDS.TRANSFER$NAU"
+    F.FUNDS.TRANSFER.NAU  = ""
+    CALL OPF(FN.FUNDS.TRANSFER.NAU, F.FUNDS.TRANSFER.NAU)
+
+    FN.DEAL.SLIP.FORMAT = "F.DEAL.SLIP.FORMAT"
+    F.DEAL.SLIP.FORMAT  = ""
+    CALL OPF(FN.DEAL.SLIP.FORMAT, F.DEAL.SLIP.FORMAT)
+
+    Y.APP      = "FUNDS.TRANSFER"
+    Y.FLD.NAME = "SKN.SENDER.NAME"
+    Y.POS      = ""
+    CALL MULTI.GET.LOC.REF(Y.APP, Y.FLD.NAME,Y.POS)
+    Y.FT.SKN.SENDER.NAME.POS  = Y.POS<1,1>
+
+    Y.FIX.SENDER.NAME = ""
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+PROCESS:
+*-----------------------------------------------------------------------------
+    Y.DEAL.SLIP = R.VERSION(EB.VER.D.SLIP.FORMAT)
+
+    CALL F.READ(FN.DEAL.SLIP.FORMAT, Y.DEAL.SLIP, R.DEAL.SLIP.FORMAT, F.DEAL.SLIP.FORMAT, DEAL.SLIP.FORMAT.ERR)
+    Y.FORMAT = R.DEAL.SLIP.FORMAT<EB.DSF.FORMAT>
+    LOCATE "@ATI.DSF.FT.SKN.OUT.SEN.NAME" IN Y.FORMAT<1,1> SETTING Y.POS THEN
+        Y.REAL.POSITION = R.DEAL.SLIP.FORMAT<EB.DSF.COLUMN, Y.POS>
+        Y.POS += 1
+        Y.POSITION = R.DEAL.SLIP.FORMAT<EB.DSF.COLUMN, Y.POS>
+
+        Y.CONV.REAL.POS = FIELD(Y.REAL.POSITION, ",", 1) - 1
+        Y.CONV.POS = FIELD(Y.POSITION, ",", 1)
+    END
+
+    Y.ID.FT = Y.DATA
+    CALL F.READ(FN.FUNDS.TRANSFER, Y.ID.FT, R.FUNDS.TRANSFER, F.FUNDS.TRANSFER, FUNDS.TRANSFER.ERR)
+
+    Y.SENDER.NAME = R.FUNDS.TRANSFER<FT.LOCAL.REF, Y.FT.SKN.SENDER.NAME.POS>
+
+    IF Y.SENDER.NAME EQ "" THEN
+        CALL F.READ(FN.FUNDS.TRANSFER.NAU, Y.ID.FT, R.FT.NAU, F.FUNDS.TRANSFER.NAU, FT.NAU.ERR)
+        Y.SENDER.NAME = R.FT.NAU<FT.LOCAL.REF, Y.FT.SKN.SENDER.NAME.POS>
+    END
+
+    CONVERT SM TO " " IN Y.SENDER.NAME
+
+    Y.ROW.DATA = FMT(Y.SENDER.NAME, '35T')
+
+    CONVERT @TM TO FM IN Y.ROW.DATA
+
+    Y.ROW.CNT = DCOUNT(Y.ROW.DATA, FM)
+
+    FOR Y.LOOP = 1 TO Y.ROW.CNT
+        IF Y.FIX.SENDER.NAME EQ "" THEN
+            Y.FIX.SENDER.NAME<-1> = Y.ROW.DATA<Y.LOOP>
+        END
+        ELSE
+            Y.FIX.SENDER.NAME<-1> = FMT("", Y.CONV.REAL.POS:"R") : Y.ROW.DATA<Y.LOOP>
+        END
+    NEXT
+
+    CONVERT FM TO CHAR(10) IN Y.FIX.SENDER.NAME
+
+    Y.PRINT.SENDER.NAME = Y.FIX.SENDER.NAME
+    Y.DATA = Y.PRINT.SENDER.NAME
+
+    RETURN
+*-----------------------------------------------------------------------------
+END
+
+
+
+
+

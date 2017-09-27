@@ -1,0 +1,87 @@
+*-----------------------------------------------------------------------------
+* <Rating>-70</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ATI.BM.LBV.SERVICE(Y.ID)
+*-----------------------------------------------------------------------------
+* Developer Name     : Novi Leo
+* Development Date   : 20161213
+* Description        : Routine to start service for generate LBV
+*-----------------------------------------------------------------------------
+* Modification History:-
+*-----------------------------------------------------------------------------
+* Date               :
+* Modified by        :
+* Description        :
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ATI.BM.LBV.SERVICE.COMMON
+    $INSERT I_F.COMPANY
+    $INSERT I_F.BATCH
+    $INSERT I_F.TSA.SERVICE
+
+*-----------------------------------------------------------------------------
+MAIN:
+*-----------------------------------------------------------------------------
+    GOSUB INIT
+    GOSUB PROCESS
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+INIT:
+*-----------------------------------------------------------------------------
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+PROCESS:
+*-----------------------------------------------------------------------------
+    CALL F.READ(FN.COMP,Y.ID,R.COMP,F.COMP,COMP.ERR)
+    Y.MNEMONIC = R.COMP<EB.COM.MNEMONIC>
+    Y.ID.BATCH = Y.MNEMONIC:"/ATI.BS.LBV.GEN"
+    Y.ID.TSA   = Y.MNEMONIC:"/ATI.BS.LBV.GEN"
+
+    CALL F.READ(FN.BATCH, Y.ID.BATCH, R.BATCH, F.BATCH, BATCH.ERR)
+    IF NOT(R.BATCH) THEN
+        GOSUB CREATE.BATCH
+    END
+
+    CALL F.READ(FN.TSA.SERVICE, Y.ID.TSA, R.TSA.SERVICE, F.TSA.SERVICE, TSA.SERVICE.ERR)
+    IF NOT(R.TSA.SERVICE) THEN
+        GOSUB CREATE.TSA.SERVICE
+    END ELSE
+        R.TSA.SERVICE<TS.TSM.SERVICE.CONTROL> = "START"
+
+        CALL ID.LIVE.WRITE(FN.TSA.SERVICE,Y.ID.TSA,R.TSA.SERVICE)
+    END
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+CREATE.BATCH:
+*-----------------------------------------------------------------------------
+    R.BATCH<BAT.PROCESS.STATUS>    = "0"
+    R.BATCH<BAT.BATCH.ENVIRONMENT> = "F"
+    R.BATCH<BAT.JOB.NAME>          = "ATI.BS.LBV.GEN"
+    R.BATCH<BAT.FREQUENCY>         = "D"
+    R.BATCH<BAT.JOB.STATUS>        = "0"
+
+    CALL ID.LIVE.WRITE(FN.BATCH, Y.ID.BATCH, R.BATCH)
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+CREATE.TSA.SERVICE:
+*-----------------------------------------------------------------------------
+    R.TSA.SERVICE<TS.TSM.DESCRIPTION>     = "ATI.BS.LBV.GEN"
+    R.TSA.SERVICE<TS.TSM.WORK.PROFILE>    = "ONE"
+    R.TSA.SERVICE<TS.TSM.USER>            = "INPUTTER"
+    R.TSA.SERVICE<TS.TSM.SERVICE.CONTROL> = "START"
+
+    CALL ID.LIVE.WRITE(FN.TSA.SERVICE, Y.ID.TSA, R.TSA.SERVICE)
+
+    RETURN
+*-----------------------------------------------------------------------------
+END
+ 

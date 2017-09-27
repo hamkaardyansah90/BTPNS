@@ -1,0 +1,116 @@
+*-----------------------------------------------------------------------------
+* <Rating>-43</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ATI.DSF.AC.JOINT.NAME.TRX.2(Y.DATA)
+*-----------------------------------------------------------------------------
+* Developer Name     : ATI Mauizah Hasanah
+* Development Date   : 11 October 2016
+* Description        : Routine deal slip to show joint holder
+*-----------------------------------------------------------------------------
+* Modification History:-
+*-----------------------------------------------------------------------------
+* Date               : ATI Yudistia Adnan Putri
+* Modified by        : 20170329
+* Description        : Change dealslip cut joint name per row
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.ACCOUNT
+    $INSERT I_F.VERSION
+    $INSERT I_F.DEAL.SLIP.FORMAT
+*-----------------------------------------------------------------------------
+MAIN:
+*-----------------------------------------------------------------------------
+    GOSUB INIT
+    GOSUB PROCESS
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+INIT:
+*-----------------------------------------------------------------------------
+
+    FN.ACCOUNT = "F.ACCOUNT"
+    F.ACCOUNT  = ""
+    CALL OPF(FN.ACCOUNT, F.ACCOUNT)
+
+    FN.DEAL.SLIP.FORMAT = "F.DEAL.SLIP.FORMAT"
+    F.DEAL.SLIP.FORMAT  = ""
+    CALL OPF(FN.DEAL.SLIP.FORMAT, F.DEAL.SLIP.FORMAT)
+
+    Y.APP      = "ACCOUNT"
+    Y.FLD.NAME = "ATI.JOINT.NAME"
+    Y.POS      = ""
+    CALL MULTI.GET.LOC.REF(Y.APP, Y.FLD.NAME,Y.POS)
+    Y.ATI.JOINT.NAME.POS  = Y.POS<1,1>
+
+    Y.FIX.JOINT.NAME = ""
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+PROCESS:
+*-----------------------------------------------------------------------------
+
+    Y.DEAL.SLIP = R.VERSION(EB.VER.D.SLIP.FORMAT)
+
+    CALL F.READ(FN.DEAL.SLIP.FORMAT, Y.DEAL.SLIP, R.DEAL.SLIP.FORMAT, F.DEAL.SLIP.FORMAT, DEAL.SLIP.FORMAT.ERR)
+    Y.FORMAT = R.DEAL.SLIP.FORMAT<EB.DSF.FORMAT>
+
+    LOCATE "@ATI.DSF.AC.JOINT.NAME.TRX.2" IN Y.FORMAT<1,1> SETTING Y.POS THEN
+        Y.REAL.POSITION = R.DEAL.SLIP.FORMAT<EB.DSF.COLUMN, Y.POS>
+        Y.POS += 1
+        Y.POSITION = R.DEAL.SLIP.FORMAT<EB.DSF.COLUMN, Y.POS>
+
+        Y.CONV.REAL.POS = FIELD(Y.REAL.POSITION, ",", 1) - 1
+        Y.CONV.POS = FIELD(Y.POSITION, ",", 1)
+    END
+
+    Y.ID.ACCOUNT = Y.DATA
+    CALL F.READ(FN.ACCOUNT, Y.ID.ACCOUNT, R.ACCOUNT, F.ACCOUNT, ACCOUNT.ERR)
+    Y.JOINT.HOLDER.NAME = R.ACCOUNT<AC.LOCAL.REF, Y.ATI.JOINT.NAME.POS>
+    IF Y.JOINT.HOLDER.NAME THEN
+*<20170329_Yudistia Adnan
+*CONVERT SM TO " " IN Y.JOINT.HOLDER.NAME
+        CALL ATI.GC.AC.JOINT.NAME(Y.JOINT.HOLDER.NAME, Y.CONV.POS, Y.CONV.REAL.POS)
+
+        Y.DATA = Y.JOINT.HOLDER.NAME
+*Y.LEN   = LEN(Y.JOINT.HOLDER.NAME)
+*Y.DIV   = Y.LEN / 35
+*Y.ROUND = DROUND(Y.DIV, 0) + 1
+*Y.POS   = 1
+*FOR YJNT = 1 TO Y.ROUND
+*IF Y.FIX.JOINT.NAME EQ "" THEN
+*Y.FIX.JOINT.NAME<-1> = FMT(Y.JOINT.HOLDER.NAME[Y.POS, 35], Y.CONV.POS:"L")
+*END ELSE
+*Y.FIX.JOINT.NAME<-1> = FMT("", Y.CONV.REAL.POS:"R") : Y.JOINT.HOLDER.NAME[Y.POS, 35]
+*END
+*Y.POS += 35
+*NEXT YJNT
+*CONVERT FM TO CHAR(10) IN Y.FIX.JOINT.NAME
+*Y.PRINT.JOINT.NAME = Y.FIX.JOINT.NAME
+*Y.DATA = Y.PRINT.JOINT.NAME
+*>20170329_Yudistia Adnan
+    END ELSE
+        CALL IDIR.DSF.TT.ACC.TITLE(Y.DATA)
+    END
+
+    RETURN
+*-----------------------------------------------------------------------------
+END
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

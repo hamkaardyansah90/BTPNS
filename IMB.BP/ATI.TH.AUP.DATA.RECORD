@@ -1,0 +1,76 @@
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ATI.TH.AUP.DATA.RECORD
+*-----------------------------------------------------------------------------
+* Developer Name     : ATI Juan Felix
+* Development Date   : 20170210
+* Description        : Check record routine
+*-----------------------------------------------------------------------------
+* Modification History:-
+*-----------------------------------------------------------------------------
+* Date            Modified by                Description
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_GTS.COMMON
+    $INSERT I_F.ATI.TH.AUP.DATA
+    $INSERT I_F.COMPANY
+
+*-----------------------------------------------------------------------------
+MAIN:
+*-----------------------------------------------------------------------------
+    GOSUB INIT
+    GOSUB PROCESS
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+INIT:
+*-----------------------------------------------------------------------------
+    FN.COM = "F.COMPANY"
+    CALL OPF(FN.COM, F.COM)
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+PROCESS:
+*-----------------------------------------------------------------------------
+*-Enrichment Company----------------------------------------------------------
+    Y.BRANCH.CODE.LIST = R.NEW(AUP.DATA.BRANCH.CODE)
+    Y.BRANCH.CODE.CNT  = DCOUNT(Y.BRANCH.CODE.LIST, VM)
+
+    FOR I = 1 TO Y.BRANCH.CODE.CNT
+        Y.BRANCH.CODE = Y.BRANCH.CODE.LIST<1, I>
+
+        CALL F.READ(FN.COM, Y.BRANCH.CODE, R.COM, F.COM, ERR.COM)
+
+        IF R.COM THEN
+            OFS$ENRI<AUP.DATA.BRANCH.CODE, I> = R.COM<EB.COM.COMPANY.NAME>
+        END
+        ELSE
+            OFS$ENRI<AUP.DATA.BRANCH.CODE, I> = "Data Tidak Ditemukan"
+        END
+    NEXT I
+    Y.INPUTTER = R.NEW(AUP.DATA.USER.INPUT)
+    Y.STATUS   = R.NEW(AUP.DATA.STATUS)
+
+    Y.OPERATOR = OPERATOR
+
+    IF Y.STATUS EQ "AUTHORISING" OR Y.STATUS EQ "AUTHORISE" THEN
+        IF Y.OPERATOR EQ Y.INPUTTER THEN
+            E = "User ID Inputter & Otorisator sama"
+            CALL ERR
+        END
+    END
+
+    RETURN
+*-----------------------------------------------------------------------------
+END
+
+
+
+
+
+
+

@@ -1,0 +1,58 @@
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ATI.BM.AUP.UP.PURGE(Y.UP.DATE.CONCAT.ID)
+*-----------------------------------------------------------------------------
+* Developer Name     : ATI Juan Felix
+* Development Date   : 20170124
+* Description        : Batch Routine Multi for Purge Data Upload UP
+*-----------------------------------------------------------------------------
+* Modification History:-
+*-----------------------------------------------------------------------------
+* Date            Modified by                Description
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.ATI.TH.AUP.UP.DATA
+    $INSERT I_F.ATI.TT.AUP.UP.DATE.CONCAT
+    $INSERT I_F.ATI.TH.AUP.PARAM
+    $INSERT I_ATI.BM.AUP.UP.PURGE.COMMON
+
+*-----------------------------------------------------------------------------
+MAIN:
+*-----------------------------------------------------------------------------
+    GOSUB INIT
+    GOSUB PROCESS
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+INIT:
+*-----------------------------------------------------------------------------
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+PROCESS:
+*-----------------------------------------------------------------------------
+    CALL F.READ(FN.ATI.TT.AUP.UP.DATE.CONCAT, Y.UP.DATE.CONCAT.ID, R.ATI.TT.AUP.UP.DATE.CONCAT, F.ATI.TT.AUP.UP.DATE.CONCAT, ERR.ATI.TT.AUP.UP.DATE.CONCAT)
+    Y.R.ATI.TT.AUP.UP.DATE.CONCAT.CNT = DCOUNT(R.ATI.TT.AUP.UP.DATE.CONCAT, FM)
+
+    FOR I = 1 TO Y.R.ATI.TT.AUP.UP.DATE.CONCAT.CNT
+        Y.UP.DATA.ID.HIS = R.ATI.TT.AUP.UP.DATE.CONCAT<I>
+
+        CALL F.READ(FN.ATI.TH.AUP.UP.DATA.HIS, Y.UP.DATA.ID.HIS, R.ATI.TH.AUP.UP.DATA.HIS, F.ATI.TH.AUP.UP.DATA.HIS, ERR.ATI.TH.AUP.UP.DATA.HIS)
+        CALL F.WRITE(FN.ATI.TT.AUP.UP.DATA.HIS.ARC, Y.UP.DATA.ID.HIS, R.ATI.TH.AUP.UP.DATA.HIS)
+        CALL F.DELETE(FN.ATI.TH.AUP.UP.DATA.HIS, Y.UP.DATA.ID.HIS)
+    NEXT I
+
+    CALL F.DELETE(FN.ATI.TT.AUP.UP.DATE.CONCAT, Y.UP.DATE.CONCAT.ID)
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+END
+
+
+
+

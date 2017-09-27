@@ -1,0 +1,44 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ATI.CONV.EC.SM.COUNT
+*-----------------------------------------------------------------------------
+* Developer Name     : Dwi K
+* Development Date   : 20151207
+* Description        : Routine to make multivalue line in enquiry
+*-----------------------------------------------------------------------------
+* Modification History:-
+*-----------------------------------------------------------------------------
+* Date               :
+* Modified by        :
+* Description        :
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+
+*-----------------------------------------------------------------------------
+    Y.DATA = O.DATA
+    CONVERT SM TO FM IN Y.DATA
+
+    Y.CNT  = DCOUNT(Y.DATA,FM)
+
+    Y.DATA.VM<1,Y.CNT> = Y.DATA<VC>
+    O.DATA   = Y.DATA.VM
+
+    IF Y.CNT GE VM.COUNT THEN
+        VM.COUNT = Y.CNT
+    END
+
+    RETURN
+*-----------------------------------------------------------------------------
+END
+
+
+
+
+
+
+
+
+

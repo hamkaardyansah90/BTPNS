@@ -1,0 +1,37 @@
+*-----------------------------------------------------------------------------
+* <Rating>0</Rating>
+*-----------------------------------------------------------------------------
+    PROGRAM ATI.CORR.574563
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+    $INSERT I_F.DC.BATCH.CONTROL
+    $INSERT I_F.DATA.CAPTURE
+
+    FN.DC.BAT = 'FBNK.DC.BATCH.CONTROL'
+    F.DC.BAT  = ''
+    CALL OPF(FN.DC.BAT,F.DC.BAT)
+
+    PRINT 'Input Data Capture'
+    INPUT Y.DC
+
+    SEL.CMD = "SELECT ":FN.DC.BAT:" WITH @ID EQ ":Y.DC
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.OF.REC,ERR)
+
+    FOR I=1 TO NO.OF.REC
+        CALL F.READ(FN.DC.BAT,SEL.LIST<I>,R.DC.BAT,F.DC.BAT,ERR.DC.BAT)
+        R.DC.BAT<DC.BAT.LCY.AMOUNT.CREDIT> = '349000'
+        WRITE R.DC.BAT TO F.DC.BAT,SEL.LIST<I>
+        PRINT 'Field telah terisi, Silahkan dicheck kembali'
+    NEXT I
+END
+
+
+
+
+
+
+
+
+
+

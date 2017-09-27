@@ -1,0 +1,140 @@
+*-----------------------------------------------------------------------------
+* <Rating>-84</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ATI.BM.UPD.LLC.FLD(Y.ID)
+*-----------------------------------------------------------------------------
+* Developer Name     : 20170713
+* Development Date   : Novi Leo
+* Description        : Routine to update from old LLC field to new LLC field
+*-----------------------------------------------------------------------------
+* Modification History:-
+*-----------------------------------------------------------------------------
+* Date               :
+* Modified by        :
+* Description        :
+*-----------------------------------------------------------------------------
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ATI.BM.UPD.LLC.FLD.COMMON
+    $INSERT I_F.CUSTOMER
+
+*-----------------------------------------------------------------------------
+MAIN:
+*-----------------------------------------------------------------------------
+
+    GOSUB INIT
+    GOSUB PROCESS
+
+    RETURN
+*-----------------------------------------------------------------------------
+INIT:
+*-----------------------------------------------------------------------------
+    Y.OFS.DET  = ""
+    R.CUSTOMER = ""
+
+    PROTECT.CHARS = "'" : '"' : ',' : '(' : ')' : '/'
+    REPLACE.CHARS = "@" : '|' : '?' : '{' : '}' : '^'
+
+    RETURN
+*-----------------------------------------------------------------------------
+PROCESS:
+*-----------------------------------------------------------------------------
+
+    CALL F.READ(FN.CUSTOMER,Y.ID,R.CUSTOMER,F.CUSTOMER,CUSTOMER.ERR)
+    Y.CUST.TYPE = R.CUSTOMER<EB.CUS.LOCAL.REF, Y.CUST.TYPE.POS>
+
+    BEGIN CASE
+    CASE Y.CUST.TYPE EQ "C"
+        GOSUB PROC.CORP
+    CASE Y.CUST.TYPE EQ "R"
+        GOSUB PROC.RETAIL
+    END CASE
+
+    GOSUB GEN.OFS
+
+    RETURN
+*-----------------------------------------------------------------------------
+PROC.CORP:
+*-----------------------------------------------------------------------------
+    Y.DESTINATION.ACC = R.CUSTOMER<EB.CUS.LOCAL.REF, Y.DESTINATION.ACC.POS>
+    Y.PIC.CALL.BACK   = R.CUSTOMER<EB.CUS.LOCAL.REF, Y.PIC.CALL.BACK.POS>
+    Y.CALL.BACK.NO    = R.CUSTOMER<EB.CUS.LOCAL.REF, Y.CALL.BACK.NO.POS>
+    Y.ATI.LLC.ACC     = R.CUSTOMER<EB.CUS.LOCAL.REF, Y.ATI.LLC.ACC.POS>
+    Y.ATI.LLC.PIC     = R.CUSTOMER<EB.CUS.LOCAL.REF, Y.ATI.LLC.PIC.POS>
+    Y.ATI.LLC.CALL.1  = R.CUSTOMER<EB.CUS.LOCAL.REF, Y.ATI.LLC.CALL.1.POS>
+
+    CONVERT PROTECT.CHARS TO REPLACE.CHARS IN Y.DESTINATION.ACC
+    CONVERT PROTECT.CHARS TO REPLACE.CHARS IN Y.PIC.CALL.BACK
+    CONVERT PROTECT.CHARS TO REPLACE.CHARS IN Y.CALL.BACK.NO
+
+    Y.CNT.DESTINATION.AC = DCOUNT(Y.DESTINATION.ACC, SM)
+    Y.CNT.PIC.CALL.BACK  = DCOUNT(Y.PIC.CALL.BACK, SM)
+    Y.CNT.CALL.BACK.NO   = DCOUNT(Y.CALL.BACK.NO, SM)
+
+    IF Y.ATI.LLC.ACC EQ "" THEN
+        FOR Y.LOOP = 1 TO Y.CNT.DESTINATION.AC
+            Y.OFS.DET := ",ATI.LLC.ACC:":Y.LOOP:":1=":Y.DESTINATION.ACC<1,1,Y.LOOP>
+        NEXT Y.LOOP
+    END
+
+    IF Y.ATI.LLC.PIC EQ "" THEN
+        FOR Y.LOOP2 = 1 TO Y.CNT.PIC.CALL.BACK
+            Y.OFS.DET := ",ATI.LLC.PIC:":Y.LOOP2:":1=":Y.PIC.CALL.BACK<1,1,Y.LOOP2>
+        NEXT Y.LOOP2
+    END
+
+    IF Y.ATI.LLC.CALL.1 EQ "" THEN
+        FOR Y.LOOP3 = 1 TO Y.CNT.CALL.BACK.NO
+            Y.OFS.DET := ",ATI.LLC.CALL.1:":Y.LOOP3:":1=":Y.CALL.BACK.NO<1,1,Y.LOOP3>
+        NEXT Y.LOOP3
+    END
+
+    RETURN
+*-----------------------------------------------------------------------------
+PROC.RETAIL:
+*-----------------------------------------------------------------------------
+    Y.DESTINATION.ACC    = R.CUSTOMER<EB.CUS.LOCAL.REF, Y.DESTINATION.ACC.POS>
+    CONVERT PROTECT.CHARS TO REPLACE.CHARS IN Y.DESTINATION.ACC
+
+    Y.CNT.DESTINATION.AC = DCOUNT(Y.DESTINATION.ACC, SM)
+    Y.ATI.LLC.ACC        = R.CUSTOMER<EB.CUS.LOCAL.REF, Y.ATI.LLC.ACC.POS>
+
+    IF Y.ATI.LLC.ACC EQ "" THEN
+        FOR Y.LOOP4 = 1 TO Y.CNT.DESTINATION.AC
+            Y.OFS.DET := ",ATI.LLC.ACC:":Y.LOOP4:":1=":Y.DESTINATION.ACC<1,1,Y.LOOP4>
+        NEXT Y.LOOP4
+    END
+
+    RETURN
+*-----------------------------------------------------------------------------
+GEN.OFS:
+*-----------------------------------------------------------------------------
+*Y.OFS.HDR = "CUSTOMER,ATI.OFS/I/PROCESS,//":ID.COMPANY:",":Y.ID
+*Y.OFS.MSG = Y.OFS.HDR:Y.OFS.DET
+
+*Y.PROCESS.FLAG = ""
+
+*CALL.INFO    = ""
+*CALL.INFO<1> = Y.OFS.SOURCE
+*CALL.INFO<4> = ""
+
+*CALL OFS.BULK.MANAGER(Y.OFS.MSG, Y.PROCESS.FLAG, OPTION)
+
+    Y.OFS.HDR = "CUSTOMER,ATI.OFS/I///0,//," : Y.ID
+    Y.OFS.MSG = Y.OFS.HDR:Y.OFS.DET
+
+    Y.OFS.SOURCE = "GENERIC.OFS.PROCESS"
+
+    CALL OFS.CALL.BULK.MANAGER(Y.OFS.SOURCE, Y.OFS.MSG, Y.OFS.RESPONSE, Y.TXN.RESULT)
+
+    RETURN
+*-----------------------------------------------------------------------------
+END
+
+
+
+
+
+
+

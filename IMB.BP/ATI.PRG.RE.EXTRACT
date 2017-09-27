@@ -1,0 +1,143 @@
+*-----------------------------------------------------------------------------
+* <Rating>-60</Rating>
+* 15:02:45 05 SEP 2016 * 19:04:02 02 AUG 2016 
+* CBS-APP1-JKT/t24sit * WIN-KVUAVRB60BE/R14 
+*-----------------------------------------------------------------------------
+    SUBROUTINE ATI.PRG.RE.EXTRACT
+*-----------------------------------------------------------------------------
+* Developer Name     : Dwi K
+* Development Date   : 20160802
+* Description        : Routine for re extract
+*-----------------------------------------------------------------------------
+* Modification History:-
+*-----------------------------------------------------------------------------
+* Date               :
+* Modified by        :
+* Description        :
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.ATI.TH.EXT.REPORT
+    $INSERT I_F.DATES
+*-----------------------------------------------------------------------------
+MAIN:
+*-----------------------------------------------------------------------------
+    GOSUB INIT
+    GOSUB FINAL.WRITE
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+INIT:
+*-----------------------------------------------------------------------------
+    FN.ID.REP = 'F.ATI.TH.EXT.REPORT'
+    F.ID.REP  = ''
+    CALL OPF(FN.ID.REP, F.ID.REP)
+
+    CRT 'INPUT ID MAPPING EXTRACTOR'
+    INPUT Y.ID.EXT.REP
+
+
+    RETURN
+*-----------------------------------------------------------------------------
+FINAL.WRITE:
+*-----------------------------------------------------------------------------
+
+    GOSUB GET.DATA.EXT.REP
+
+    FN.FOLDER = Y.FOLDER
+    F.FOLDER  = ''
+    CALL OPF(FN.FOLDER,F.FOLDER)
+
+    FN.EXT.TEMP = 'F.ATI.EXT.REP.':Y.ID.EXT.REP:'.TEMP'
+    F.EXT.TEMP  = ''
+    CALL OPF(FN.EXT.TEMP,F.EXT.TEMP)
+
+    FN.FILE.EXT = 'F.ATI.TT.FILE.EXT.REPORT'
+    F.FILE.EXT  = ''
+    CALL OPF(FN.FILE.EXT,F.FILE.EXT)
+
+    Y.EXT.TEMP.CMD = "SELECT ":FN.EXT.TEMP
+    CALL EB.READLIST(Y.EXT.TEMP.CMD,Y.EXT.TEMP.LIST,"",Y.EXT.TEMP.CNT,Y.EXT.TEMP.ERR)
+
+    FOR I = 1 TO Y.EXT.TEMP.CNT
+        Y.AGENT.NO = FIELD(Y.EXT.TEMP.LIST<I>,'-',1)
+        CHANGE '!AGENT.NUMBER' TO Y.AGENT.NO IN Y.FILENAME
+
+        IF Y.SPLIT.FILE EQ 'YES' THEN
+            Y.FILENAME.NEW = Y.FILENAME:'_':Y.EXT.TEMP.LIST<I>
+            GOSUB WRITE.TEXTFILE
+        END ELSE
+            Y.FILENAME.NEW = Y.FILENAME
+            GOSUB WRITE.TEXTFILE
+        END
+
+        CALL F.READ(FN.FILE.EXT,Y.ID.EXT.REP,R.FILE.EXT,F.FILE.EXT,FILE.EXT.ERR)
+        FIND Y.FILENAME.NEW IN R.FILE.EXT SETTING POSF.FILE ELSE
+            R.FILE.EXT<-1> = Y.FILENAME.NEW
+        END
+        CALL F.WRITE(FN.FILE.EXT,Y.ID.EXT.REP,R.FILE.EXT)
+
+    NEXT I
+
+    RETURN
+*-----------------------------------------------------------------------------
+GET.DATA.EXT.REP:
+*-----------------------------------------------------------------------------
+    CALL F.READ(FN.ID.REP,Y.ID.EXT.REP,R.ID.REP,F.ID.REP,REP.ERR)
+    Y.APP        = R.ID.REP<EXT.REP.APPLICATION>
+    Y.FOLDER     = R.ID.REP<EXT.REP.OUTPUT.DIR>
+    Y.SEL.FLD    = R.ID.REP<EXT.REP.SEL.FLD>
+    Y.SEL.CRIT   = R.ID.REP<EXT.REP.SEL.CRIT>
+    Y.SEL.VAL    = R.ID.REP<EXT.REP.SEL.VALUE>
+    Y.SEL.COMB   = R.ID.REP<EXT.REP.SEL.COMB>
+    Y.SEL.RTN    = R.ID.REP<EXT.REP.SEL.RTN>
+    Y.FILENAME   = R.ID.REP<EXT.REP.TARGET.FILE>
+    Y.SPLIT.FILE = R.ID.REP<EXT.REP.SPLIT.FILE>
+
+    CHANGE '!TODAY' TO R.DATES(EB.DAT.TODAY) IN Y.FILENAME
+    CHANGE '!LAST.WORKING.DAY' TO R.DATES(EB.DAT.LAST.WORKING.DAY) IN Y.FILENAME
+    CHANGE '!NEXT.WORKING.DAY' TO R.DATES(EB.DAT.NEXT.WORKING.DAY) IN Y.FILENAME
+    CHANGE '!USER' TO OPERATOR IN Y.FILENAME
+    CHANGE '!LOCAL.CCY' TO LCCY IN Y.FILENAME
+    CHANGE '!LANGUAGE' TO LNGG IN Y.FILENAME
+    CHANGE '!COMPANY' TO ID.COMPANY IN Y.FILENAME
+
+    Y.SYS.DATE = ''
+    Y.SYS.DATE = OCONV(DATE(),"D-")
+    Y.SYS.DATE.VAL = Y.SYS.DATE[7,4]:Y.SYS.DATE[1,2]:Y.SYS.DATE[4,2]
+
+    CHANGE '!SYSTEM.DATE' TO Y.SYS.DATE.VAL IN Y.FILENAME
+    CHANGE '!SERVER.NAME' TO SYSTEM(50) IN Y.FILENAME
+
+    RETURN
+*-----------------------------------------------------------------------------
+WRITE.TEXTFILE:
+*-----------------------------------------------------------------------------
+    OPENSEQ FN.FOLDER, Y.FILENAME.NEW TO F.FOLDER ELSE
+        CREATE F.FOLDER THEN
+        END
+    END
+
+    CALL F.READ(FN.EXT.TEMP,Y.EXT.TEMP.LIST<I>,R.EXT.TEMP,F.EXT.TEMP,EXT.TEMP.ERR)
+    Y.CNT.REC.DATA = DCOUNT(R.EXT.TEMP,FM)
+
+    FOR YLOOP3 = 1 TO Y.CNT.REC.DATA
+        WRITESEQ R.EXT.TEMP<YLOOP3> APPEND TO F.FOLDER ELSE
+            CRT 'FILE WRITE ERROR'
+            STOP
+        END
+    NEXT YLOOP3
+
+    WEOFSEQ F.FOLDER
+    CLOSESEQ F.FOLDER
+
+    RETURN
+*-----------------------------------------------------------------------------
+END
+
+
+
+
+
+

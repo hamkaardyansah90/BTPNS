@@ -1,0 +1,1190 @@
+*-----------------------------------------------------------------------------
+* <Rating>2573</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ATI.BS.LBV.GEN
+*-----------------------------------------------------------------------------
+* Developer Name     : Novi Leo
+* Development Date   : 20161213
+* Description        : Routine to generate LBV
+*-----------------------------------------------------------------------------
+* Modification History:-
+*-----------------------------------------------------------------------------
+* Date            Modified by                Description
+* 20170323       ATI-Yudistia Adnan          Add condition for LBV Report collect
+*                                            per Line and total amount per line
+* 20170912       ATI-Yudistia Adnan          Add total saldo
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.RE.STAT.REPORT.HEAD
+    $INSERT I_F.RE.STAT.LINE.CONT
+    $INSERT I_F.COMPANY
+    $INSERT I_F.DATES
+    $INSERT I_F.RE.STAT.MISMATCH
+    $INSERT I_F.CONSOLIDATE.ASST.LIAB
+    $INSERT I_F.LIMIT
+    $INSERT I_DAS.RE.STAT.LINE.CONT
+    $INSERT I_GET.GAAP.TYPE.COMMON
+
+*-----------------------------------------------------------------------------
+MAIN:
+*-----------------------------------------------------------------------------
+    GOSUB INITIALISE
+    GOSUB MAIN.CONTROL.PARA
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+INITIALISE:
+*-----------------------------------------------------------------------------
+
+    PRT.UNIT = 0
+*
+    YERROR = ""
+    YASSET.CONSOL.KEYS = ""
+    YASSET.CONSOL.TYPES = ""
+    LOCAL7 = ""
+    Y.DECIMAL.ARRAY = ""
+    Y.TOT.BAL = 0
+    Y.BALANCE.FILE = 0
+    INCLUDE.GAAP.TYPES = ""   ;!Variable that holds the GAAP.TYPE of the HEAD record.
+    Y.FMT.BAL.TEMP = ""
+    Y.FMT.BAL.FILE.TEMP = ""
+    Y.FMT.DIFF.TEMP = ""
+
+    Y.SUM.SALDO.NOMINATIF = ""
+    Y.SUM.SALDO.NERACA    = ""
+    Y.SUM.SELISIH         = ""
+    YR.DIFFERENCE = ""
+    Y.YR.DIFFERENCE.TEMP = ""
+    Y.BAL.FILE.TEMP = ""
+    Y.TOT.BAL.TEMP = ""
+**
+** Any new applications which use RE.CONTRACT.BALANCES should be added
+** to this list so that the correct generic routine RE.EXTRACT.GEN.INFO
+** is called
+**
+    GEN.APPS.LIST = "SW":VM:"PD":VM:"DX":VM:"BL":VM:"SL":VM:"ND":VM:"AZ":VM:"IA"
+**
+    CALL FIND.CCY.MKT("AC","1","","","","","")
+*
+    YFN.DATES = "F.DATES"
+    F.DATES = ""
+    CALL OPF(YFN.DATES,F.DATES)
+
+    FN.RE.STAT.MISMATCH = "F.RE.STAT.MISMATCH"
+    F.RE.STAT.MISMATCH  = ""
+    CALL OPF(FN.RE.STAT.MISMATCH, F.RE.STAT.MISMATCH)
+
+*---- Find the number of reports to be produced
+
+    Y.CCY.LOCAL = LCCY
+    Y.LOCAL.CCY.DECIMALS = "NO.OF.DECIMALS"
+    CALL UPD.CCY(Y.CCY.LOCAL,Y.LOCAL.CCY.DECIMALS)
+
+    Y.LOCAL.CCY.NAME = "CCY.NAME"
+    CALL UPD.CCY(Y.CCY.LOCAL,Y.LOCAL.CCY.NAME)
+
+
+    F.CONSOLIDATE.ASST.LIAB = ""
+    CALL OPF("F.CONSOLIDATE.ASST.LIAB",F.CONSOLIDATE.ASST.LIAB)
+
+* Set up output file for missmatch lines.
+    F.CONSOL.MISMATCHES = ""
+    CALL OPF("F.CONSOL.MISMATCHES",F.CONSOL.MISMATCHES)
+    CONSOL.MISMATCHES.KEY = 1
+    CONSOL.MISMATCHES.REC = ""
+*
+    IF RUNNING.UNDER.BATCH THEN
+        FX.PROC.DATE = TODAY
+    END ELSE
+        FX.PROC.DATE = R.DATES(EB.DAT.LAST.WORKING.DAY)
+    END
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+MAIN.CONTROL.PARA:
+*-----------------------------------------------------------------------------
+*
+    Y.ID.RE.STAT.MISMATCH = "MISMATCH"
+    CALL F.READ(FN.RE.STAT.MISMATCH,Y.ID.RE.STAT.MISMATCH,R.RE.STAT.MISMATCH,F.RE.STAT.MISMATCH,RE.STAT.MISMATCH.ERR)
+    YCOUNT.RPT.NAME = COUNT(R.RE.STAT.MISMATCH<RE.SMM.REPORT.NAME>,VM)+1
+
+    FOR YY = 1 TO YCOUNT.RPT.NAME
+        Y.CURR.REPORT      = R.RE.STAT.MISMATCH<RE.SMM.REPORT.NAME,YY>
+        REPORT.ID          = "LBV." : Y.CURR.REPORT
+        YCOUNT.RPT.LINE.NO = COUNT(R.RE.STAT.MISMATCH<RE.SMM.LINE.NO.ST,YY>,SM)+1
+
+        CALL PRINTER.ON(REPORT.ID, PRT.UNIT)
+
+*---- Set up report header lines
+
+        GOSUB SET.UP.HEADING.DETAILS
+        IF YERROR THEN
+            GOSUB MAIN.PARA.EXIT
+            RETURN
+        END
+
+        GOSUB LIST.REP.LINES:
+
+*---- Read each report line and print according to the specifications
+
+        GOSUB READ.REPORT.LINES
+        IF YERROR THEN
+            GOSUB MAIN.PARA.EXIT
+            RETURN
+        END
+
+        CALL PRINTER.CLOSE(REPORT.ID,PRT.UNIT,"")
+    NEXT
+
+*---- Successful run of the program
+
+    CALL PRINTER.OFF
+    BATCH.DETAILS<1> = 2
+
+    RETURN
+
+MAIN.PARA.EXIT:
+*--------------
+
+    IF YERROR THEN
+        CALL PRINTER.CLOSE(REPORT.ID,PRT.UNIT,"")
+        CALL PRINTER.OFF
+        E = BATCH.DETAILS<2>
+    END
+    RETURN
+
+*----
+*     END OF MAIN ROUTINE ****************************
+*
+
+SET.UP.HEADING.DETAILS:
+*----
+*     Module sets up Report header line
+
+    Y.REPORT = Y.CURR.REPORT
+    Y1.FILE = "F.RE.STAT.REPORT.HEAD" ; F.RE.STAT.REPORT.HEAD = ""
+    Y.FILE.INP = Y1.FILE:FM:"NO.FATAL.ERROR"
+    CALL OPF(Y.FILE.INP,F.RE.STAT.REPORT.HEAD)
+    Y1.FILE = Y.FILE.INP<1>
+    IF ETEXT THEN
+
+*---- File Open Error
+
+        BATCH.DETAILS<1> = 0
+        BATCH.DETAILS<2> = Y1.FILE:" OPEN ERROR"
+        YERROR = 1
+        RETURN
+    END
+    READ Y1.REC FROM F.RE.STAT.REPORT.HEAD,Y.REPORT ELSE
+        Y1.REC = ""
+        BATCH.DETAILS<1> = 0
+        BATCH.DETAILS<2> = Y.REPORT:" MISSING"
+        YERROR = 1
+        RETURN
+    END
+*---- Store the GAAP type from RE.STAT.REPORT.HEAD record.
+    INCLUDE.GAAP.TYPES = Y1.REC<RE.SRH.INCL.GAAP.TYPE>
+
+*---- Store Heading according to the Language used
+
+    IF Y1.REC<RE.SRH.HEADING,LNGG> <> "" THEN
+        YP.TITLE = Y1.REC<RE.SRH.HEADING,LNGG>
+    END ELSE
+        YP.TITLE = Y1.REC<RE.SRH.HEADING,1>
+    END
+
+*---- Fetch Line Narrative heads and size,if Report header contains a type
+*     Component
+
+    IF FIELD(Y.REPORT,".",2) <> "" THEN
+        Y.BASE.REPORT = FIELD(Y.REPORT,".",1)
+        READ Y1.RECA FROM F.RE.STAT.REPORT.HEAD,Y.BASE.REPORT
+        ELSE
+            BATCH.DETAILS<1> = 0
+            BATCH.DETAILS<2> = Y.BASE.REPORT:" MISSING"
+            YERROR = 1
+            RETURN
+        END
+
+        IF Y1.RECA<RE.SRH.LINE.NARR.SIZE> <> "" THEN
+            Y1.REC<RE.SRH.LINE.NARR.SIZE> = Y1.RECA<RE.SRH.LINE.NARR.SIZE>
+            Y1.REC<RE.SRH.NARR.HD.1> = Y1.RECA<RE.SRH.NARR.HD.1>
+            Y1.REC<RE.SRH.NARR.HD.2> = Y1.RECA<RE.SRH.NARR.HD.2>
+        END
+        Y.REPORT = Y.BASE.REPORT
+    END
+
+*----
+
+*---- Store Company Name and other details
+
+    YP.COMPANY.NAME = R.COMPANY(EB.COM.COMPANY.NAME)
+    YP.UNIT.NAME = R.COMPANY(EB.COM.STAT.REP.NAME)
+    YP.UNIT.AREA = R.COMPANY(EB.COM.STAT.REP.AREA)
+    YP.DELIVERY = R.COMPANY(EB.COM.STAT.REP.DELIV)
+
+*---- Initialise report date and page counts
+
+    YP.PAGE.COUNT = 0
+    YP.LINES.PER.PAGE = 60
+
+*---- Number of lines per page is now set to 60
+
+    YP.LINE.COUNT = YP.LINES.PER.PAGE + 1
+    YP.DATE = TIMEDATE()
+    YP.DATE[6,3] = " ON"
+
+*---- As SECS. are not required to be printed
+
+*---- set print date depending on whether on-line or batch
+*     for on-line print use last working day
+
+    MONTH.END.FLAG = 0
+    YPROC.DATE = R.DATES(EB.DAT.LAST.WORKING.DAY)
+    YNEXT.RUN.DATE = TODAY
+    IF RUNNING.UNDER.BATCH THEN
+        IF Y1.REC<RE.SRH.MAT.TO.MONTH.END> EQ "Y" THEN
+            YPROC.DATE = R.DATES(EB.DAT.PERIOD.END)
+            IF YPROC.DATE[5,2] NE R.DATES(EB.DAT.NEXT.WORKING.DAY)[5,2] THEN
+                MONTH.END.FLAG = 1
+            END
+        END ELSE
+            YPROC.DATE = TODAY
+        END
+        YNEXT.RUN.DATE = R.DATES(EB.DAT.NEXT.WORKING.DAY)
+    END ELSE
+        IF Y1.REC<RE.SRH.MAT.TO.MONTH.END> EQ "Y" THEN
+            IF R.DATES(EB.DAT.LAST.WORKING.DAY)[5,2] NE TODAY[5,2] THEN
+                MONTH.END.FLAG = 1
+                YYR = R.DATES(EB.DAT.LAST.WORKING.DAY)[1,4]
+                YMM = R.DATES(EB.DAT.LAST.WORKING.DAY)[5,2]
+                GOSUB LAST.MONTH.DAY
+                YPROC.DATE = YYR:YMM:YLAST.DAY
+            END ELSE
+                YPROC.DATE = TODAY
+                CALL CDT("",YPROC.DATE,"-1C")
+            END
+*****
+        END ELSE
+            YPROC.DATE = R.DATES(EB.DAT.LAST.WORKING.DAY)
+        END
+    END
+    YP.TODAY = R.DATES(EB.DAT.LAST.WORKING.DAY)
+    YP.TODAY = ICONV((YP.TODAY[7,2]:"/":YP.TODAY[5,2]:"/":YP.TODAY[1,4]),"DE")
+    YP.TODAY = OCONV(YP.TODAY,"D")
+
+    IF Y1.REC<RE.SRH.MAT.INCLUSIVE> NE "Y" THEN
+        CALL CDT("",YPROC.DATE,"-1C")
+    END
+
+*---- Build up Heading line formats
+
+    YP.RHEAD1  = "RE000025 " : FMT(YP.COMPANY.NAME,"22L") : SPACE(7) : "LAPORAN LEDGER BALANCE VERIFICATION" : SPACE(19)
+    YP.RHEAD1 := "AS AT CLOSE OF " : YP.TODAY : SPACE(15) : "PAGE NO "
+    YP.RHEAD1 := SPACE(4)
+
+*---- Page Count will be moved at print time
+
+    YP.RHEAD2  = "AREA NAME " : FMT(YP.UNIT.AREA,"35L") : SPACE(68) : "PRINTED AT " : YP.DATE
+
+    YP.RHEAD3  = "TO: " : FMT(YP.UNIT.NAME,"38L") : FMT(YP.DELIVERY,"12L")
+    YP.RHEAD3 := SPACE(70)
+
+*---- Currency and Amount Units will be moved at Print time
+
+    YP.CHEAD1 = "LINE & KATEGORI" : SPACE(2) : "DESKRIPSI" : SPACE(57) : "SALDO NOMINATIF" : SPACE(6) : "SALDO NERACA" : SPACE(9) : "SELISIH"
+    YP.CHEAD2 = "---------------" : SPACE(2) : "----------------------------------------------------------------" : SPACE(2) : "-------------------" : SPACE(2) : "-------------------" : SPACE(2) : "-------------------"
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+LIST.REP.LINES:
+*-----------------------------------------------------------------------------
+*     Module collects all line numbers for this report
+
+*---- Get correct report line file name for the company
+
+    Y7.FILE = "F.RE.STAT.LINE.CONT" ; F.RE.STAT.LINE.CONT = ""
+    Y.FILE.INP = Y7.FILE:FM:"NO.FATAL.ERROR"
+    CALL OPF(Y.FILE.INP,F.RE.STAT.LINE.CONT)
+    Y7.FILE = Y.FILE.INP<1>
+
+    IF ETEXT THEN
+        BATCH.DETAILS<1> = 0
+        BATCH.DETAILS<2> = Y7.FILE:" OPEN ERROR"
+        YERROR = 1
+        RETURN
+    END
+
+*---- Store line numbers used in the report
+
+    Y.REP.LINE.COUNT = 0
+    Y.REP.LINE.LIST = ""
+    CLEARSELECT
+
+    IF C$MULTI.BOOK THEN
+        ID.LIST = dasReStatLineContIdLikeIdLikeById
+        THE.ARGS = Y.REPORT : "..." : FM : "..." : ID.COMPANY
+    END ELSE
+        ID.LIST  = dasReStatLineContIdLikeById
+        THE.ARGS = Y.REPORT : "..."
+    END
+
+    TABLE.SUFFIX = ""
+
+    CALL DAS("RE.STAT.LINE.CONT",ID.LIST,THE.ARGS,TABLE.SUFFIX)
+
+    IF ID.LIST = "" THEN
+        NULL
+    END ELSE
+        LOOP
+            REMOVE YID FROM ID.LIST SETTING YD
+        WHILE YID DO
+            Y.SEL.REP.NAME = FIELD(YID,".",1)
+            IF Y.SEL.REP.NAME = Y.REPORT THEN
+                Y.COMPARE.REP.LINE.NO = FIELD(YID,".",2)
+                Y.LINE.MATCH = ""
+                FOR YYY = 1 TO YCOUNT.RPT.LINE.NO UNTIL Y.LINE.MATCH
+                    IF R.RE.STAT.MISMATCH<RE.SMM.LINE.NO.END,YY,YYY> = "" THEN
+                        IF Y.COMPARE.REP.LINE.NO = R.RE.STAT.MISMATCH<RE.SMM.LINE.NO.ST,YY,YYY> THEN
+                            Y.REP.LINE.LIST<-1> = Y.COMPARE.REP.LINE.NO
+                            Y.LINE.MATCH = 1
+                            Y.REP.LINE.COUNT += 1
+                        END
+                    END ELSE
+                        IF Y.COMPARE.REP.LINE.NO >= R.RE.STAT.MISMATCH<RE.SMM.LINE.NO.ST,YY,YYY> AND Y.COMPARE.REP.LINE.NO <= R.RE.STAT.MISMATCH<RE.SMM.LINE.NO.END,YY,YYY> THEN
+                            Y.REP.LINE.LIST<-1> = Y.COMPARE.REP.LINE.NO
+                            Y.LINE.MATCH = 1
+                            Y.REP.LINE.COUNT += 1
+                        END
+                    END
+                NEXT YYY
+            END
+        REPEAT
+    END
+    RETURN
+
+*-----------------------------------------------------------------------------
+READ.REPORT.LINES:
+*-----------------------------------------------------------------------------
+
+*---- Record selections and parameters initialisation
+
+    Y.FOREIGN.CURRENCIES = "" ;* Dynamic array of Foreign Currency Codes used
+    YCON.KEY = ""   ;* Variable used TO store consol KEY IN CASE of detailed PRINT
+    Y.FIRST.RUN = 1 ;* Indicator used TO build up A TABLE of Foreign Currencies used
+
+*---- for CURRENCY wise reporting
+
+    IF Y1.REC<RE.SRH.SPLIT> = "ALL" OR Y1.REC<RE.SRH.SPLIT> = "TOTAL.FOREIGN" THEN
+        Y.RPT.CCY = ""
+    END ELSE
+        Y.RPT.CCY = LCCY
+    END
+
+*---- Find number of decimals used in the report currency
+
+    GOSUB GET.CCY.DECIMALS
+    IF YERROR THEN
+        RETURN
+    END
+
+*---- Process each report line and print
+    Y.PREV.LINE   = ""
+    Y.END = ""
+    LOOP UNTIL Y.END = "END"
+
+*---- clear work file used for profit loss sign processing
+
+
+        FOR Y.LIN.NO = 1 TO Y.REP.LINE.COUNT
+            Y.TOT.REP.LINE.BAL = 0
+            Y.TOT.BAL = 0
+            YKEY = Y.REPORT:".":Y.REP.LINE.LIST<Y.LIN.NO>
+            IF C$MULTI.BOOK THEN
+                YKEY:= ".":ID.COMPANY
+            END
+            READ Y7.REC FROM F.RE.STAT.LINE.CONT, YKEY ELSE
+                BATCH.DETAILS<1> = 0
+                BATCH.DETAILS<2> = YKEY:" MISSING IN F.RE.STAT.LINE.CONT"
+                YERROR = 1
+                RETURN
+            END
+
+            IF Y7.REC<RE.SLC.TYPE> = "HEADING" THEN
+
+*---- check if report split is BY.FOREIGN and if its first run then skip
+*     printing of report lines as Y.RPT.CCY is set to LCCY for building
+*     an array of foreign currencies
+
+                YPRINT.LINES = 1
+                IF Y.FIRST.RUN AND Y1.REC<RE.SRH.SPLIT> = "BY.FOREIGN" THEN
+                    YPRINT.LINES = 0
+                END
+
+*----20161213
+*ONLY MISMATCH RECORD WILL BE PRINTED
+*IF YPRINT.LINES THEN
+*GOSUB FORMAT.LINE.NARRATIVE
+*YP.SPACE.BEFORE = 1
+*YP.SPACE.AFTER = ""
+*YP.DATA.LINE = Y.NARRATIVE
+*GOSUB CHECK.PRINT.LINE:
+*END
+
+
+            END ELSE
+                IF Y7.REC<RE.SLC.TYPE> <> "TOTAL" THEN
+                    YPRINT.LINES = 1
+                    IF Y.FIRST.RUN THEN
+                        IF Y1.REC<RE.SRH.SPLIT> = "BY.FOREIGN" THEN
+                            YPRINT.LINES = 0
+                        END
+                    END
+
+                    GOSUB ACCUM.DETAIL.LINE
+
+*----20161213
+*ONLY MISMATCH RECORD WILL BE PRINTED
+*IF YPRINT.LINES THEN
+*    GOSUB FORMAT.LINE.NARRATIVE
+*    YP.SPACE.BEFORE = 1
+*    YP.SPACE.AFTER = ""
+*    YP.DATA.LINE = Y.NARRATIVE
+*    GOSUB CHECK.PRINT.LINE:
+*END
+
+                    IF YERROR THEN
+                        RETURN
+                    END
+                END
+            END
+            IF YERROR THEN
+                RETURN
+            END
+
+            Y.ACCUM = ""
+        NEXT Y.LIN.NO
+
+*---- Now print END OF REPORT line
+
+
+*---- check if report split is BY.FOREIGN and if its first run then skip
+*     printing of report lines as Y.RPT.CCY is set to LCCY for building
+*     an array of foreign currencies
+
+        YPRINT.LINES = 1
+        IF Y.FIRST.RUN AND Y1.REC<RE.SRH.SPLIT> = "BY.FOREIGN" THEN
+            YPRINT.LINES = 0
+        END
+        IF YPRINT.LINES THEN
+            GOSUB PRINT.END.OF.REPORT
+        END
+
+
+*---- Now check if reports have to be generated for other Currencies
+
+        IF Y1.REC<RE.SRH.SPLIT> = "CURRENCY" OR Y1.REC<RE.SRH.SPLIT> = "BY.FOREIGN" THEN
+            IF Y.FOREIGN.CURRENCIES <> "" THEN
+                IF Y.FIRST.RUN THEN
+                    Y.NO.OF.REPORTS = COUNT(Y.FOREIGN.CURRENCIES,FM)+1
+                    Y.FIRST.RUN = 0 ; Y.REPORT.NO = 0
+                END
+                Y.REPORT.NO += 1
+                IF Y.REPORT.NO > Y.NO.OF.REPORTS THEN
+                    Y.END = "END"
+                END ELSE
+
+*---- Initialise variables for next run
+
+                    Y.RPT.CCY = Y.FOREIGN.CURRENCIES<Y.REPORT.NO>
+                    GOSUB GET.CCY.DECIMALS
+                    IF YERROR THEN
+                        RETURN
+                    END
+
+                    YP.PAGE.COUNT = 0
+                    YP.LINE.COUNT = YP.LINES.PER.PAGE + 1
+                END
+            END ELSE
+                Y.END = "END"
+            END
+        END ELSE
+            Y.END = "END"
+        END
+    REPEAT
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+ACCUM.DETAIL.LINE:
+*-----------------------------------------------------------------------------
+
+    YTEMP = Y7.REC<RE.SLC.ASST.CONSOL.KEY>
+    Y.ASSET.COUNTS = COUNT(YTEMP,VM) + (YTEMP # "")
+    Y.CHECK = Y1.REC<RE.SRH.SPLIT>
+
+*---- Temporary variable defined to carry the SPLIT value as it will be used often
+    FOR YI = 1 TO Y.ASSET.COUNTS
+        YCON.KEY = Y7.REC<RE.SLC.ASST.CONSOL.KEY,YI>
+        Y.CURR.CCY = FIELD(YCON.KEY,".",4)
+*-- If the POS.TYPE of the key is not same as the GAAP type given in header record
+*   then dont include it.
+        Y.POS.TYPE = FIELD(YCON.KEY,".",3)
+        IF INCLUDE.GAAP.TYPES AND NOT(Y.POS.TYPE MATCHES INCLUDE.GAAP.TYPES) THEN
+            CONTINUE
+        END
+
+*---- Processing depends on SPLIT and CURRENCY
+
+        BEGIN CASE
+        CASE Y.CHECK = "ALL"
+            GOSUB PROCESS.ASSET.RECORDS
+        CASE Y.CHECK = "LOCAL"
+            IF Y.CURR.CCY = LCCY THEN
+                GOSUB PROCESS.ASSET.RECORDS
+            END
+        CASE Y.CHECK = "CURRENCY"
+            IF Y.FIRST.RUN THEN
+                IF Y.CURR.CCY = LCCY THEN
+                    GOSUB PROCESS.ASSET.RECORDS
+                END ELSE
+                    LOCATE Y.CURR.CCY IN Y.FOREIGN.CURRENCIES<1> BY "AL" SETTING X ELSE
+                        INS Y.CURR.CCY BEFORE Y.FOREIGN.CURRENCIES<X>
+                    END
+                END
+            END ELSE
+                IF Y.CURR.CCY = Y.RPT.CCY THEN
+                    GOSUB PROCESS.ASSET.RECORDS
+                END
+            END
+        CASE Y.CHECK = "TOTAL.FOREIGN"
+            IF Y.CURR.CCY <> LCCY THEN
+                GOSUB PROCESS.ASSET.RECORDS
+            END
+        CASE Y.CHECK = "BY.FOREIGN"
+            IF Y.FIRST.RUN THEN
+                IF Y.CURR.CCY <> LCCY THEN
+                    LOCATE Y.CURR.CCY IN Y.FOREIGN.CURRENCIES<1> BY "AL" SETTING X ELSE
+                        INS Y.CURR.CCY BEFORE Y.FOREIGN.CURRENCIES<X>
+                    END
+                END
+            END ELSE
+                IF Y.CURR.CCY = Y.RPT.CCY THEN
+                    GOSUB PROCESS.ASSET.RECORDS
+                END
+            END
+        END CASE
+        IF YERROR THEN
+            RETURN
+        END
+    NEXT
+    RETURN
+
+*-----------------------------------------------------------------------------
+PROCESS.ASSET.RECORDS:
+*-----------------------------------------------------------------------------
+    Y.COUNT.AS    = ""
+    YASSET.KEY    = Y7.REC<RE.SLC.ASST.CONSOL.KEY,YI>
+    YTEMP         = Y7.REC<RE.SLC.ASSET.TYPE,YI>
+    Y.COUNT.AS    = COUNT(YTEMP,SM) + (YTEMP # "")
+    Y.APPLICATION = FIELD(YASSET.KEY,".",1)
+    FOR Y.TYPE.NO = 1 TO Y.COUNT.AS
+        Y.CURR.TYPE = Y7.REC<RE.SLC.ASSET.TYPE,YI,Y.TYPE.NO>
+        YMATURITY.DATE.RANGE = Y7.REC<RE.SLC.MAT.RANGE,YI,Y.TYPE.NO>
+        IF YMATURITY.DATE.RANGE THEN
+            GOSUB BUILD.MATURITY.DATE.RANGES:
+        END ELSE
+            YSTART.MAT.DATE.RANGE = ""
+            YEND.MAT.DATE.RANGE = ""
+        END
+
+        GOSUB CONSOL.KEY.PRINT:
+        IF ERROR.MESSAGE THEN
+            CONTINUE
+        END
+*
+        IF YERROR THEN
+            RETURN
+        END
+        GOSUB PROCESS.APP.RECORDS
+*
+        IF YERROR THEN
+            RETURN
+        END
+
+*
+    NEXT Y.TYPE.NO
+
+    IF Y.TYPE.NO THEN
+        Y.TOT.BAL = Y.TOT.BAL + 0       ;*CI_10056951 S
+        Y.BALANCE.FILE = Y.BALANCE.FILE + 0       ;*CI_10056951 E
+        IF Y.TOT.BAL <> Y.BALANCE.FILE THEN
+            GOSUB FORMAT.LINE.NARRATIVE
+
+            Y.FMT.BAL       = FMT(OCONV(ICONV(Y.TOT.BAL,"MD":Y.KEY.CCY.DECIMALS),"MD":Y.KEY.CCY.DECIMALS:","),"19R")
+            YR.DIFFERENCE   = Y.TOT.BAL - Y.BALANCE.FILE
+            Y.FMT.BAL.FILE  = FMT(OCONV(ICONV(Y.BALANCE.FILE,"MD":Y.KEY.CCY.DECIMALS),"MD":Y.KEY.CCY.DECIMALS:","),"19R")
+            Y.FMT.DIFF      = FMT(OCONV(ICONV(YR.DIFFERENCE,"MD":Y.KEY.CCY.DECIMALS),"MD":Y.KEY.CCY.DECIMALS:","),"19R")
+*<20170323_Yudistia Adnan
+            YP.SPACE.BEFORE = ""
+            YP.SPACE.AFTER  = ""
+            Y.LINE          = Y7.REC<RE.SLC.DESC,1,LNGG>
+
+            YP.SPACE.BEFORE = ""
+            YP.SPACE.AFTER  = ""
+
+*YP.DATA.LINE    = YPRINT.KEY : SPACE(2) : Y.NARRATIVE : SPACE(2) : Y.FMT.BAL : SPACE(2) : Y.FMT.BAL.FILE : SPACE(2) : Y.FMT.DIFF
+            YPRINT.KEY.FMT = FMT(YPRINT.KEY, "81L")
+            YP.DATA.LINE    = YPRINT.KEY.FMT : SPACE(2) : Y.FMT.BAL : SPACE(2) : Y.FMT.BAL.FILE : SPACE(2) : Y.FMT.DIFF
+
+            GOSUB CHECK.PRINT.LINE
+*write per-line
+            YP.SPACE.BEFORE = ""
+            YP.SPACE.AFTER  = ""
+            Y.LINE          = Y7.REC<RE.SLC.DESC,1>
+            Y.DESC.LINE = FMT(Y.LINE,"15L") : SPACE(2) : FMT(Y.NARRATIVE,"64L")
+
+            YP.DATA.LINE  =  Y.DESC.LINE : SPACE(2) : Y.FMT.BAL : SPACE(2) : Y.FMT.BAL.FILE : SPACE(2) : Y.FMT.DIFF
+            GOSUB CHECK.PRINT.LINE
+
+*>20170323_Yudistia Adnan
+            CONSOL.MISMATCHES.REC<1> = YCON.KEY
+            CONSOL.MISMATCHES.REC<2> = Y.TOT.BAL
+            CONSOL.MISMATCHES.REC<3> = Y.BALANCE.FILE
+            CONSOL.MISMATCHES.REC<4> = YR.DIFFERENCE
+            CONSOL.MISMATCHES.REC<5> = YKEY
+* Add company code to key to CONSOL.MISMATCH
+            MISMTCH.KEY = ""
+            IF C$MULTI.BOOK THEN
+                MISMTCH.KEY = CONSOL.MISMATCHES.KEY:".":ID.COMPANY
+            END ELSE
+                MISMTCH.KEY = CONSOL.MISMATCHES.KEY
+            END
+*            WRITE CONSOL.MISMATCHES.REC TO F.CONSOL.MISMATCHES, CONSOL.MISMATCHES.KEY
+            WRITE CONSOL.MISMATCHES.REC TO F.CONSOL.MISMATCHES, MISMTCH.KEY
+            CONSOL.MISMATCHES.KEY += 1
+            IF Y.EXT.INDIC THEN
+                YX.KEY = YCON.KEY[YWIDTH+1,YLEN-YWIDTH]
+                YX.LEN = LEN(YX.KEY)
+                YP.DATA.LINE = FMT(YX.KEY,YX.LEN:"L")
+
+                YP.SPACE.BEFORE = ""
+                YP.SPACE.AFTER = ""
+                GOSUB CHECK.PRINT.LINE:
+            END
+*/20170912_ATI Yudistia
+            Y.SUM.SALDO.NOMINATIF += Y.TOT.BAL
+            Y.SUM.SALDO.NERACA    += Y.BALANCE.FILE
+            Y.SUM.SELISIH         += YR.DIFFERENCE
+*/20170912_ATI Yudistia
+        END
+
+        Y.TOT.BAL = 0
+        Y.BALANCE.FILE = 0
+        YR.DIFFERENCE = 0
+    END
+    RETURN
+
+*-----------------------------------------------------------------------------
+CONSOL.KEY.PRINT:
+*-----------------------------------------------------------------------------
+*---- Consolidation key & Balances printed here
+*YCON.KEY = YASSET.KEY:".":Y.CURR.TYPE
+    YCON.KEY = YASSET.KEY
+    YWIDTH   = 50
+    YLEN     = LEN(YCON.KEY)
+    Y.EXT.INDIC = ""
+
+    IF YLEN > YWIDTH THEN
+        YPRINT.KEY = YCON.KEY[1,YWIDTH]
+
+        Y.EXT.INDIC = 1
+    END ELSE
+        YPRINT.KEY = FMT(YCON.KEY,YWIDTH:"L")
+    END
+
+    YKEY.TOPRINT = "Y"
+    ERROR.MESSAGE = ""
+
+    READ Y.CAL.REC FROM F.CONSOLIDATE.ASST.LIAB , YASSET.KEY ELSE
+*
+        ERROR.KEY = YASSET.KEY
+        ERROR.MESSAGE = YASSET.KEY:" MISSING IN CRF FILE"
+        GOSUB ERROR.9999
+        RETURN
+    END
+
+    LOCATE Y.CURR.TYPE IN Y.CAL.REC<RE.ASL.TYPE,1> SETTING Y.TYPE.POS ELSE
+        NULL
+    END
+
+    IF YMATURITY.DATE.RANGE THEN
+        GOSUB GET.MATURITY.BALANCES:
+*
+    END ELSE
+        Y.CCY.BAL   = Y.CAL.REC<RE.ASL.BALANCE,Y.TYPE.POS> + Y.CAL.REC<RE.ASL.CREDIT.MOVEMENT,Y.TYPE.POS> + Y.CAL.REC<RE.ASL.DEBIT.MOVEMENT,Y.TYPE.POS>
+        Y.LOCAL.BAL = Y.CAL.REC<RE.ASL.LOCAL.BALANCE,Y.TYPE.POS> + Y.CAL.REC<RE.ASL.LOCAL.CREDT.MVE,Y.TYPE.POS> + Y.CAL.REC<RE.ASL.LOCAL.DEBIT.MVE,Y.TYPE.POS>
+
+    END
+
+    Y.BALANCE.FILE   += Y.CCY.BAL
+    Y.BAL.FILE.LOCAL = Y.LOCAL.BAL
+
+    IF Y.BALANCE.FILE = "" THEN
+        Y.BALANCE.FILE = 0
+    END
+*
+    Y.CCY.IN.KEY = FIELD(YASSET.KEY,".",4)
+    GOSUB GET.KEY.CCY.DECIMALS:
+*
+    RETURN
+
+*-----------------------------------------------------------------------------
+GET.MATURITY.BALANCES:
+*-----------------------------------------------------------------------------
+*
+* checks whether the maturity date is within the range spec if so adds
+* to the balance
+*------------------------------------------------------------------------
+*
+    Y.CCY.BAL = ""
+    Y.LOCAL.BAL = ""
+    IF Y.CAL.REC<RE.ASL.SCHD.AMOUNT,Y.TYPE.POS> = "" THEN
+        IF YMATURITY.DATE.RANGE[1,1] = "\" THEN
+            Y.CCY.BAL = Y.CAL.REC<RE.ASL.BALANCE,Y.TYPE.POS> + Y.CAL.REC<RE.ASL.CREDIT.MOVEMENT,Y.TYPE.POS> + Y.CAL.REC<RE.ASL.DEBIT.MOVEMENT,Y.TYPE.POS>
+            Y.LOCAL.BAL = Y.CAL.REC<RE.ASL.LOCAL.BALANCE,Y.TYPE.POS> + Y.CAL.REC<RE.ASL.LOCAL.CREDT.MVE,Y.TYPE.POS> + Y.CAL.REC<RE.ASL.LOCAL.DEBIT.MVE,Y.TYPE.POS>
+        END
+        RETURN
+    END
+    YNO.OF.SCHD.AMOUNTS = COUNT(Y.CAL.REC<RE.ASL.SCHD.AMOUNT,Y.TYPE.POS>,SM) + 1
+    FOR YAMT.NO = 1 TO YNO.OF.SCHD.AMOUNTS
+        YSCHD.MAT.DATE = Y.CAL.REC<RE.ASL.MAT.DATE,Y.TYPE.POS,YAMT.NO>
+        IF YSCHD.MAT.DATE <> "" THEN
+            IF YSCHD.MAT.DATE = 0 THEN
+* call type contracts
+                YSCHD.MAT.DATE = YPROC.DATE
+            END ELSE
+                IF LEN(YSCHD.MAT.DATE) < 4 THEN
+* notice type contracts
+                    YREF.DATE = YNEXT.RUN.DATE
+                    YDAYS = YSCHD.MAT.DATE
+                    GOSUB GET.DATE.ADDING.DAYS
+                    YSCHD.MAT.DATE = YEND.DATE
+                END
+            END
+        END
+*
+* check whether schd.date falls in the maturity range specified for the
+* line
+*
+        IF YSCHD.MAT.DATE > YSTART.MAT.DATE.RANGE THEN
+            IF YEND.MAT.DATE.RANGE = "REST" OR YSCHD.MAT.DATE <= YEND.MAT.DATE.RANGE THEN
+                Y.LOCAL.BAL = Y.LOCAL.BAL + Y.CAL.REC<RE.ASL.SCHD.LCL.AMT,Y.TYPE.POS,YAMT.NO>
+                Y.CCY.BAL = Y.CCY.BAL + Y.CAL.REC<RE.ASL.SCHD.AMOUNT,Y.TYPE.POS,YAMT.NO>
+            END
+        END
+*
+    NEXT YAMT.NO
+*
+*
+    RETURN
+*
+*-----------------------------------------------------------------------------
+GET.KEY.CCY.DECIMALS:
+*-----------------------------------------------------------------------------
+*
+    Y.KEY.CCY.DECIMALS = ""
+    LOCATE Y.CCY.IN.KEY IN Y.DECIMAL.ARRAY<1,1> SETTING YPOS
+    ELSE
+        Y.TEMP.DECIMALS = "NO.OF.DECIMALS"
+        CALL UPD.CCY(Y.CCY.IN.KEY,Y.TEMP.DECIMALS)
+        INS Y.CCY.IN.KEY BEFORE Y.DECIMAL.ARRAY<1,YPOS>
+        INS Y.TEMP.DECIMALS BEFORE Y.DECIMAL.ARRAY<2,YPOS>
+    END
+    Y.KEY.CCY.DECIMALS = Y.DECIMAL.ARRAY<2,YPOS>
+    RETURN
+*
+*-----------------------------------------------------------------------------
+PROCESS.APP.RECORDS:
+*-----------------------------------------------------------------------------
+*
+    APP.KEYS = ""
+    CALL RE.EXTRACT.APP.KEYS(YASSET.KEY, Y.CURR.TYPE, APP.KEYS)
+    Y.BAL = 0
+    LOOP
+        REMOVE CONTRACT.ID FROM APP.KEYS SETTING YD
+    WHILE CONTRACT.ID
+        CALL RE.EXTRACT.APP.INFO(CONTRACT.ID,Y.CURR.TYPE,YASSET.KEY,Y.BAL,"",YSTART.MAT.DATE.RANGE,YEND.MAT.DATE.RANGE,"","",YERROR)
+        Y.BAL = Y.BAL<1>      ;* Y.BAL<2> - For local balance
+        IF YERROR THEN
+            IF YKEY.TOPRINT THEN
+                YKEY.TOPRINT = ""
+                YP.DATA.LINE = YPRINT.KEY
+                YP.SPACE.BEFORE = "1"
+                YP.SPACE.AFTER = ""
+*----20161213
+*ONLY MISMATCH RECORD WILL BE PRINTED
+*GOSUB CHECK.PRINT.LINE:
+
+                IF Y.EXT.INDIC THEN
+                    YX.KEY = YCON.KEY[YWIDTH+1,YLEN-YWIDTH]
+                    YX.LEN = LEN(YX.KEY)
+                    YP.DATA.LINE = FMT(YX.KEY,YX.LEN:"L")
+                    YP.SPACE.BEFORE = ""
+                    YP.SPACE.AFTER = ""
+
+*----20161213
+*ONLY MISMATCH RECORD WILL BE PRINTED
+*GOSUB CHECK.PRINT.LINE:
+                END
+            END
+            YERROR = ""
+            YP.DATA.LINE = SPACE(6):CONTRACT.ID:SPACE(6):"MISSING IN BASE FILE"
+            YP.SPACE.BEFORE = ""
+            YP.SPACE.AFTER = ""
+
+*----20161213
+*ONLY MISMATCH RECORD WILL BE PRINTED
+*GOSUB CHECK.PRINT.LINE
+        END ELSE
+            Y.TOT.BAL += Y.BAL
+        END
+
+    REPEAT
+*
+    RETURN
+
+*-----------------------------------------------------------------------------
+FORMAT.LINE.NARRATIVE:
+*-----------------------------------------------------------------------------
+*---- Format line Narratives
+    Y.NO.OF.DESCS = COUNT(Y1.REC<RE.SRH.LINE.NARR.SIZE>,VM) + 1
+
+    Y.NARRATIVE = ""
+    FOR Y.DESC.NO = 2 TO Y.NO.OF.DESCS
+        IF Y7.REC<RE.SLC.DESC,Y.DESC.NO,LNGG> <> "" THEN
+            Y.DESC.LINE = Y7.REC<RE.SLC.DESC,Y.DESC.NO,LNGG>
+            Y.DESC.LINE = FMT(Y.DESC.LINE,"35L")[1,Y1.REC<RE.SRH.LINE.NARR.SIZE,Y.DESC.NO>]
+            Y.NARRATIVE := Y.DESC.LINE
+        END ELSE
+            Y.DESC.LINE = Y7.REC<RE.SLC.DESC,Y.DESC.NO,1>
+            Y.DESC.LINE = FMT(Y.DESC.LINE,"35L")[1,Y1.REC<RE.SRH.LINE.NARR.SIZE,Y.DESC.NO>]
+            Y.NARRATIVE := Y.DESC.LINE
+        END
+    NEXT Y.DESC.NO
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+CHECK.PRINT.LINE:
+*-----------------------------------------------------------------------------
+
+*---- Check page end conditions
+
+    YP.LINE.COUNT = YP.LINE.COUNT + YP.SPACE.BEFORE + YP.SPACE.AFTER + 1
+    IF YP.LINE.COUNT > YP.LINES.PER.PAGE THEN
+        GOSUB PRINT.REPORT.HEADER
+        YP.LINE.COUNT = YP.LINE.COUNT + YP.SPACE.BEFORE + YP.SPACE.AFTER + 1
+    END
+
+*---- Print space lines as required
+
+    IF YP.SPACE.BEFORE > 0 THEN
+        FOR YPI = 1 TO YP.SPACE.BEFORE
+            PRINT
+        NEXT
+    END
+
+*---- Print data line
+
+    PRINT YP.DATA.LINE
+    IF YP.SPACE.AFTER > 0 THEN
+        FOR YPI = 1 TO YP.SPACE.AFTER
+            PRINT
+        NEXT
+    END
+    RETURN
+
+*-----------------------------------------------------------------------------
+GET.CCY.DECIMALS:
+*-----------------------------------------------------------------------------
+
+*     Number of decimals used in the report currency and the currency name
+*     will be stored
+
+    IF Y.RPT.CCY = "" THEN
+        YYCCY = LCCY
+    END ELSE
+        YYCCY = Y.RPT.CCY
+    END
+    Y.CCY.DECIMALS = "NO.OF.DECIMALS"
+    CALL UPD.CCY(YYCCY,Y.CCY.DECIMALS)
+    IF ETEXT <> "" THEN
+*
+        ERROR.KEY = YYCCY
+        ERROR.MESSAGE = "WRONG CCY CODES IN CONSOLIDATE FILES"
+        GOSUB ERROR.9999
+        Y.CCY.DECIMALS = 2
+        YP.CCY.NAME = "CCY CODE NOT FOUND"
+        RETURN
+    END
+    YP.CCY.NAME = "CCY.NAME"
+    CALL UPD.CCY(YYCCY,YP.CCY.NAME)
+    RETURN
+
+*-----------------------------------------------------------------------------
+PRINT.REPORT.HEADER:
+*-----------------------------------------------------------------------------
+
+*     Print report heading after incrementing page number
+
+    YP.PAGE.COUNT += 1
+    IF YP.PAGE.COUNT = 1 THEN
+        Y.TEMP.NARR = ""
+        IF Y.RPT.CCY <> "" THEN
+            Y.TEMP.NARR = "( IN ":YP.CCY.NAME
+        END
+        IF Y.TEMP.NARR THEN
+            Y.TEMP.NARR := " )"
+        END
+        YP.RHEAD3[63,67] = FMT(TRIM(Y.TEMP.NARR),"67L")
+    END
+
+    YP.LINE.COUNT = 8
+    YP.RHEAD1[141,4] = FMT(YP.PAGE.COUNT,"4RZ")
+    HEADING YP.RHEAD1
+    PRINT YP.RHEAD2
+    PRINT YP.RHEAD3
+    PRINT
+    PRINT YP.CHEAD1
+    PRINT YP.CHEAD2
+    PRINT
+    RETURN
+
+*-----------------------------------------------------------------------------
+PRINT.END.OF.REPORT:
+*-----------------------------------------------------------------------------
+*/20170912_ATI Yudistia
+    Y.SUM.SALDO.NOMINATIF.TEMP = FMT(OCONV(ICONV(Y.SUM.SALDO.NOMINATIF,"MD":Y.KEY.CCY.DECIMALS),"MD":Y.KEY.CCY.DECIMALS:","),"19R")
+    Y.SUM.SALDO.NERACA.TEMP    = FMT(OCONV(ICONV(Y.SUM.SALDO.NERACA,"MD":Y.KEY.CCY.DECIMALS),"MD":Y.KEY.CCY.DECIMALS:","),"19R")
+    Y.SUM.SELISIH.TEMP         = FMT(OCONV(ICONV(Y.SUM.SELISIH,"MD":Y.KEY.CCY.DECIMALS),"MD":Y.KEY.CCY.DECIMALS:","),"19R")
+*/20170912_ATI Yudistia
+
+*---- if last line of the report is provided as heading
+*/20170912_ATI Yudistia
+    Y.FOOTER.LINE  = SPACE(83) : "-------------------+" : SPACE(2) : "-------------------+" : SPACE(2) : "-------------------+"
+    Y.FOOTER.SALDO = "Total Saldo " : SPACE(71) : Y.SUM.SALDO.NOMINATIF.TEMP : SPACE(2) : Y.SUM.SALDO.NERACA.TEMP : SPACE(2) : Y.SUM.SELISIH.TEMP
+    PRINT Y.FOOTER.LINE
+    PRINT Y.FOOTER.SALDO
+*/20170912_ATI Yudistia
+
+    PRINT
+    PRINT "   ******  END OF REPORT  ******"
+    RETURN
+
+*----
+
+
+GET.DATE.ADDING.DAYS:
+*----
+
+    YSYS.DATE = ""
+    YSYS.DATE = YREF.DATE[7,2]:"/":YREF.DATE[5,2]:"/":YREF.DATE[1,4]
+    YSYS.DATE = ICONV(YSYS.DATE,"D4/E")
+
+*---- To arrive at end date
+
+    YSYS.DATE = YSYS.DATE + YDAYS
+    YEND.DATE = ""
+    YEND.DATE = OCONV(YSYS.DATE,"D4/E")
+    YEND.DATE = YEND.DATE[7,4]:YEND.DATE[4,2]:YEND.DATE[1,2]
+    RETURN
+
+*-----------------------------------------------------------------------------
+GET.DATE.ADDING.MONTHS:
+*-----------------------------------------------------------------------------
+
+    YEND.DATE = YREF.DATE
+    YYR = YEND.DATE[1,4]
+    YMM = YEND.DATE[5,2]
+    YDD = YEND.DATE[7,2]
+    YMM = YMM + YMONTHS
+    IF YMM > 12 THEN
+        YYY = INT(YMM/12)
+        YMM = YMM - YYY * 12
+        IF YMM = 0 THEN
+            YMM = 12
+            YYY = YYY - 1
+        END
+        YYR = YYR + YYY
+    END
+
+    GOSUB LAST.MONTH.DAY
+    IF MONTH.END.FLAG THEN
+        YDD = YLAST.DAY
+        IF Y1.REC<RE.SRH.MAT.INCLUSIVE> NE "Y" THEN
+            YDD -= 1
+        END
+    END ELSE
+        IF YDD > YLAST.DAY THEN
+            YDD = YLAST.DAY
+        END
+    END
+    IF LEN(YMM) = 1 THEN
+        YMM = "0":YMM
+    END
+    YEND.DATE = YYR:YMM:YDD
+    RETURN
+
+*-----------------------------------------------------------------------------
+GET.DATE.ADDING.YEARS:
+*-----------------------------------------------------------------------------
+
+    YYR = YREF.DATE[1,4]
+    YYR = YYR + YYEARS
+    YEND.DATE = YYR:YREF.DATE[5,4]
+    RETURN
+
+*-----------------------------------------------------------------------------
+LAST.MONTH.DAY:
+*-----------------------------------------------------------------------------
+
+*     YMM  and YYR are set to month and year respectively
+
+    IF LEN(YMM) = 1 THEN
+        YMM = "0":YMM
+    END
+    IF YMM = 2 OR YMM = "02" THEN
+        IF MOD(YYR,4) = 0 THEN
+            YLAST.DAY = "29"
+        END ELSE
+            YLAST.DAY = "28"
+        END
+    END ELSE
+        IF INDEX("04 06 09 11",YMM,1) > 0 THEN
+            YLAST.DAY = "30"
+        END ELSE
+            YLAST.DAY = "31"
+        END
+    END
+    RETURN
+
+*-----------------------------------------------------------------------------
+GET.MONTH.NAME:
+*-----------------------------------------------------------------------------
+
+    IF LEN(YMTH.REF1) = 1 THEN
+        YMTH.REF1 = "0":YMTH.REF1
+    END
+
+*---- Month names are stored in T.REMTEXT according to the
+*     language used in order separated by space
+
+    YMTH.NAME = FIELD(T.REMTEXT(19)," ",YMTH.REF1)
+    RETURN
+
+*-----------------------------------------------------------------------------
+BUILD.MATURITY.DATE.RANGES:
+*-----------------------------------------------------------------------------
+
+*     derives the start and end dates for the date range specified
+*     range can be in the format nnnS\nnnE where,
+*     nnnS can be null,nnnD(days),nnnM(months),nnnY(years)
+*     nnnE can be nnnD(days),nnnM(months),nnnY(years)
+*
+
+
+    YREF.DATE = YPROC.DATE
+    YSTART.MAT.DATE.RANGE = ""
+    YEND.MAT.DATE.RANGE = ""
+    YSTART.RANGE.SPEC = FIELD(YMATURITY.DATE.RANGE,"\",1)
+    YEND.RANGE.SPEC = FIELD(YMATURITY.DATE.RANGE,"\",2)
+
+    FOR YD.NO = 1 TO 2
+        IF YD.NO = 1 THEN
+            YCHECK.RANGE = YSTART.RANGE.SPEC
+        END ELSE
+            YCHECK.RANGE = YEND.RANGE.SPEC
+        END
+        YEND.DATE = ""
+        BEGIN CASE
+
+        CASE YCHECK.RANGE MATCHES "0N'D'"
+            YDAYS = MATCHFIELD(YCHECK.RANGE,"0N'D'",1)
+            GOSUB GET.DATE.ADDING.DAYS
+
+        CASE YCHECK.RANGE MATCHES "0N'M'"
+            YMONTHS = MATCHFIELD(YCHECK.RANGE,"0N'M'",1)
+            GOSUB GET.DATE.ADDING.MONTHS:
+
+        CASE YCHECK.RANGE MATCHES "0N'Y'"
+            YYEARS = MATCHFIELD(YCHECK.RANGE,"0N'Y'",1)
+            GOSUB GET.DATE.ADDING.YEARS
+
+        CASE YCHECK.RANGE = "1B"
+            YEND.DATE = YNEXT.RUN.DATE
+
+        CASE YCHECK.RANGE = ""
+            YEND.DATE = 0
+
+        CASE YCHECK.RANGE = "REST"
+            YEND.DATE = YCHECK.RANGE
+        END CASE
+
+        IF YD.NO = 1 THEN
+            YSTART.MAT.DATE.RANGE = YEND.DATE
+        END ELSE
+            YEND.MAT.DATE.RANGE = YEND.DATE
+        END
+    NEXT YD.NO
+
+BUILD.MDR.RETURN:
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+ERROR.9999:
+*-----------------------------------------------------------------------------
+
+    ERROR.MESSAGE = TRIM(ERROR.MESSAGE)
+
+    CALL.ARG = ""
+    CALL.ARG<1> = "RE.STAT.MISMATCH.RUN"
+    CALL.ARG<2> = "RE"
+    CALL.ARG<3> = ERROR.KEY
+    CALL.ARG<4> = LOWER(ERROR.MESSAGE)
+    CALL.ARG<5> = ""
+    CALL.ARG<6> = "656"
+
+    CALL FATAL.ERROR(CALL.ARG)
+
+    RETURN
+*----
+*     end of program --------------
+
+END
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

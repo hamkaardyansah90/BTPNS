@@ -1,0 +1,109 @@
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ATI.DSF.AC.JOINT.NAME.TRX.3(Y.DATA)
+*-----------------------------------------------------------------------------
+* Developer Name     :
+* Development Date   : 20 December 2016
+* Description        : Routine deal slip to show joint holder
+*-----------------------------------------------------------------------------
+* Modification History:-
+*-----------------------------------------------------------------------------
+* Date               : ATI Yudistia Adnan Putri
+* Modified by        : 20170331
+* Description        : Change dealslip cut joint name per row
+*-----------------------------------------------------------------------------
+* Date               : ATI Yudistia Adnan Putri
+* Modified by        : 20170806
+* Description        : Add condition for reprint dealslip
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.ACCOUNT
+    $INSERT I_F.VERSION
+    $INSERT I_F.DEAL.SLIP.FORMAT
+    $INSERT I_F.CATEGORY
+    $INSERT I_DEAL.SLIP.COMMON
+*-----------------------------------------------------------------------------
+MAIN:
+*-----------------------------------------------------------------------------
+    GOSUB INIT
+    GOSUB PROCESS
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+INIT:
+*-----------------------------------------------------------------------------
+
+    FN.ACCOUNT = "F.ACCOUNT"
+    F.ACCOUNT  = ""
+    CALL OPF(FN.ACCOUNT, F.ACCOUNT)
+
+    FN.DEAL.SLIP.FORMAT = "F.DEAL.SLIP.FORMAT"
+    F.DEAL.SLIP.FORMAT  = ""
+    CALL OPF(FN.DEAL.SLIP.FORMAT, F.DEAL.SLIP.FORMAT)
+
+    FN.CATEGORY = "F.CATEGORY"
+    F.CATEGORY  = ""
+    CALL OPF(FN.CATEGORY,F.CATEGORY)
+
+    Y.APP      = "ACCOUNT"
+    Y.FLD.NAME = "ATI.JOINT.NAME"
+    Y.POS      = ""
+    CALL MULTI.GET.LOC.REF(Y.APP, Y.FLD.NAME,Y.POS)
+    Y.ATI.JOINT.NAME.POS  = Y.POS<1,1>
+
+    Y.FIX.JOINT.NAME = ""
+
+    RETURN
+*-----------------------------------------------------------------------------
+PROCESS:
+*-----------------------------------------------------------------------------
+    Y.ACC.ID    = Y.DATA
+    Y.DEAL.SLIP = R.VERSION(EB.VER.D.SLIP.FORMAT)
+
+    IF Y.ACC.ID[1,2] EQ 'PL' THEN
+        Y.CATEG.ID = Y.ACC.ID[3,5]
+        CALL F.READ(FN.CATEGORY,Y.CATEG.ID,R.CATEGORY,F.CATEGORY,CATEG.ERR)
+        Y.DATA = R.CATEGORY<EB.CAT.SHORT.NAME>
+
+    END ELSE
+        CALL F.READ(FN.DEAL.SLIP.FORMAT, Y.DEAL.SLIP, R.DEAL.SLIP.FORMAT, F.DEAL.SLIP.FORMAT, DEAL.SLIP.FORMAT.ERR)
+        Y.FORMAT = R.DEAL.SLIP.FORMAT<EB.DSF.FORMAT>
+
+        LOCATE "@ATI.DSF.AC.JOINT.NAME.TRX.3" IN Y.FORMAT<1,1> SETTING Y.POS THEN
+            Y.REAL.POSITION = R.DEAL.SLIP.FORMAT<EB.DSF.COLUMN, Y.POS>
+            Y.POS += 1
+            Y.POSITION = R.DEAL.SLIP.FORMAT<EB.DSF.COLUMN, Y.POS>
+
+            Y.CONV.REAL.POS = FIELD(Y.REAL.POSITION, ",", 1) - 1
+            Y.CONV.POS = FIELD(Y.POSITION, ",", 1)
+        END
+
+        Y.ID.ACCOUNT = Y.DATA
+        CALL F.READ(FN.ACCOUNT, Y.ID.ACCOUNT, R.ACCOUNT, F.ACCOUNT, ACCOUNT.ERR)
+        Y.JOINT.HOLDER.NAME = R.ACCOUNT<AC.LOCAL.REF, Y.ATI.JOINT.NAME.POS>
+
+        IF Y.JOINT.HOLDER.NAME THEN
+*<20170331_Yudistia Adnan
+            CALL ATI.GC.AC.JOINT.NAME(Y.JOINT.HOLDER.NAME, Y.CONV.POS, Y.CONV.REAL.POS)
+
+            Y.DATA = Y.JOINT.HOLDER.NAME
+        END ELSE
+            CALL IDIR.DSF.TT.ACC.TITLE(Y.DATA)
+        END
+    END
+
+    RETURN
+*-----------------------------------------------------------------------------
+END
+
+
+
+
+
+
+
+
+

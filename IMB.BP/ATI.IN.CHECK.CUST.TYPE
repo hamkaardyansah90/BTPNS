@@ -1,0 +1,96 @@
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ATI.IN.CHECK.CUST.TYPE
+*-----------------------------------------------------------------------------
+* Developer Name     : ATI Mauizah Hasanah
+* Development Date   : 21 October 2016
+* Description        : Routine to validate customer type in joint holder
+*-----------------------------------------------------------------------------
+* Modification History:-
+*-----------------------------------------------------------------------------
+* Date               :
+* Modified by        :
+* Description        :
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.ACCOUNT
+    $INSERT I_F.CUSTOMER
+
+*-----------------------------------------------------------------------------
+MAIN:
+*-----------------------------------------------------------------------------
+    GOSUB INIT
+    GOSUB PROCESS
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+INIT:
+*-----------------------------------------------------------------------------
+
+    FN.CUSTOMER = "F.CUSTOMER"
+    F.CUSTOMER  = ""
+    CALL OPF(FN.CUSTOMER, F.CUSTOMER)
+
+    Y.APP          = "CUSTOMER"
+    Y.APP<-1>      = "ACCOUNT"
+    Y.FLD.NAME     = "CUST.TYPE"
+    Y.FLD.NAME<-1> = "ATI.AC.JOIN.FLG"
+    Y.POS           = ""
+    CALL MULTI.GET.LOC.REF(Y.APP, Y.FLD.NAME,Y.POS)
+
+    Y.CUST.TYPE.POS    = Y.POS<1,1>
+    Y.ACC.JOIN.FLG.POS = Y.POS<2,1>
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+PROCESS:
+*-----------------------------------------------------------------------------
+    IF R.NEW(AC.LOCAL.REF)<1,Y.ACC.JOIN.FLG.POS> NE "" THEN
+        N(AC.JOINT.HOLDER) = "10.1"
+
+        IF R.NEW(AC.JOINT.HOLDER) EQ "" THEN
+            ETEXT = "EB-INPUT.MISSING"
+            AF = AC.JOINT.HOLDER
+            CALL STORE.END.ERROR
+        END
+
+    END
+
+    Y.ID.CUSTOMER = R.NEW(AC.CUSTOMER)
+    CALL F.READ(FN.CUSTOMER, Y.ID.CUSTOMER, R.CUSTOMER, F.CUSTOMER, CUSTOMER.ERR)
+    Y.CUST.TYPE = R.CUSTOMER<EB.CUS.LOCAL.REF, Y.CUST.TYPE.POS>
+
+    Y.JOINT.HOLDER = R.NEW(AC.JOINT.HOLDER)
+    Y.CNT.JNT.HLD  = DCOUNT(Y.JOINT.HOLDER, VM)
+
+    FOR YJNT = 1 TO Y.CNT.JNT.HLD
+        Y.CUS.JNT = Y.JOINT.HOLDER<1, YJNT>
+        CALL F.READ(FN.CUSTOMER, Y.CUS.JNT, R.CUSTOMER, F.CUSTOMER, CUSTOMER.ERR)
+        Y.CUST.TYPE.JNT = R.CUSTOMER<EB.CUS.LOCAL.REF, Y.CUST.TYPE.POS>
+
+        IF Y.CUST.TYPE.JNT NE Y.CUST.TYPE THEN
+            ETEXT = "EB-CUS.CUST.TYPE"
+            AF = AC.JOINT.HOLDER
+            AV = YJNT
+            CALL STORE.END.ERROR
+        END
+    NEXT YJNT
+    CALL REBUILD.SCREEN
+
+    RETURN
+*-----------------------------------------------------------------------------
+END
+
+
+
+
+
+
+
+
+
+

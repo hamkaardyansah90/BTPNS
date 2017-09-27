@@ -1,0 +1,259 @@
+*-----------------------------------------------------------------------------
+* <Rating>-94</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ATI.BM.AUP.UP.AUT.PROCESS(Y.BATCH.CONCAT.ID)
+*-----------------------------------------------------------------------------
+* Developer Name     : ATI Juan Felix
+* Development Date   : 20170124
+* Description        : Batch Routine Multi for create EB.ACCOUNTING upload UP
+*-----------------------------------------------------------------------------
+* Modification History:-
+*-----------------------------------------------------------------------------
+* Date            Modified by                Description
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.LOCKING
+    $INSERT I_BATCH.FILES
+    $INSERT I_F.STMT.ENTRY
+    $INSERT I_F.USER
+    $INSERT I_ACCT.COMMON
+    $INSERT I_F.ATI.TH.AUP.UP.DATA
+    $INSERT I_F.ATI.TL.AUP.UP.BATCH
+    $INSERT I_F.ATI.TT.AUP.UP.BATCH.CONCAT
+    $INSERT I_F.ATI.TH.AUP.DATA
+    $INSERT I_ATI.BM.AUP.UP.AUT.PROCESS.COMMON
+
+*-----------------------------------------------------------------------------
+MAIN:
+*-----------------------------------------------------------------------------
+    GOSUB INIT
+    GOSUB PROCESS
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+INIT:
+*-----------------------------------------------------------------------------
+    Y.DATE      = OCONV(DATE(),"D-")
+    Y.TIME      = TIMEDATE()
+    Y.DATE.TIME = Y.DATE[9,2]:Y.DATE[1,2]:Y.DATE[4,2]:Y.TIME[1,2]:Y.TIME[4,2]
+
+    Y.ENTRY.NO = ""
+    Y.ENTRIES  = ""
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+PROCESS:
+*-----------------------------------------------------------------------------
+    CALL F.READ(FN.ATI.TT.AUP.UP.BATCH.CONCAT, Y.BATCH.CONCAT.ID, R.ATI.TT.AUP.UP.BATCH.CONCAT, F.ATI.TT.AUP.UP.BATCH.CONCAT, ERR.ATI.TT.AUP.UP.BATCH.CONCAT)
+    Y.UP.DATA.LIST = R.ATI.TT.AUP.UP.BATCH.CONCAT
+    Y.UP.DATA.CNT  = DCOUNT(Y.UP.DATA.LIST, FM)
+
+*-EB.ACCOUNTING Process-------------------------------------------------------
+    FOR I = 1 TO Y.UP.DATA.CNT
+        Y.UP.DATA.ID = Y.UP.DATA.LIST<I>
+
+        CALL F.READ(FN.ATI.TH.AUP.UP.DATA.NAU, Y.UP.DATA.ID, R.ATI.TH.AUP.UP.DATA.NAU, F.ATI.TH.AUP.UP.DATA.NAU, ERR.ATI.TH.AUP.UP.DATA.NAU)
+        Y.SIGN             = R.ATI.TH.AUP.UP.DATA.NAU<UP.DATA.SIGN>
+        Y.TRANSACTION.CODE = R.ATI.TH.AUP.UP.DATA.NAU<UP.DATA.TRANSACTION.CODE>
+        Y.ACCOUNT.NUMBER   = R.ATI.TH.AUP.UP.DATA.NAU<UP.DATA.ACCOUNT.NUMBER>
+        Y.PL.CATEGORY      = R.ATI.TH.AUP.UP.DATA.NAU<UP.DATA.PL.CATEGORY>
+        Y.PRODUCT.CATEGORY = R.ATI.TH.AUP.UP.DATA.NAU<UP.DATA.PRODUCT.CATEGORY>
+        Y.CURRENCY         = R.ATI.TH.AUP.UP.DATA.NAU<UP.DATA.CURRENCY>
+        Y.AMOUNT           = R.ATI.TH.AUP.UP.DATA.NAU<UP.DATA.AMOUNT>
+        Y.VALUE.DATE       = R.ATI.TH.AUP.UP.DATA.NAU<UP.DATA.VALUE.DATE>
+        Y.NARRATIVE        = R.ATI.TH.AUP.UP.DATA.NAU<UP.DATA.NARRATIVE>
+        Y.ACCOUNT.OFFICER  = R.ATI.TH.AUP.UP.DATA.NAU<UP.DATA.ACCOUNT.OFFICER>
+        Y.CUSTOMER.ID      = R.ATI.TH.AUP.UP.DATA.NAU<UP.DATA.CUSTOMER.ID>
+        Y.AUP.ID           = R.ATI.TH.AUP.UP.DATA.NAU<UP.DATA.AUP.ID>
+        Y.CO.CODE          = R.ATI.TH.AUP.UP.DATA.NAU<UP.DATA.CO.CODE>
+        Y.INPUTTER         = R.ATI.TH.AUP.UP.DATA.NAU<UP.DATA.INPUTTER>
+        Y.AUTHORISER       = TNO:"_":OPERATOR
+
+        GOSUB GET.AMOUNT
+
+        BEGIN CASE
+        CASE Y.SIGN EQ "D"
+            GOSUB GET.ENTRIES.DB
+
+        CASE Y.SIGN EQ "C"
+            GOSUB GET.ENTRIES.CR
+        END CASE
+    NEXT I
+
+    GOSUB POST.JOURNAL.ENTRY
+
+*-Write Batch Data------------------------------------------------------------
+    CALL F.READ(FN.ATI.TL.AUP.UP.BATCH, Y.BATCH.CONCAT.ID, R.ATI.TL.AUP.UP.BATCH, F.ATI.TL.AUP.UP.BATCH, ERR.ATI.TL.AUP.UP.BATCH)
+    R.ATI.TL.AUP.UP.BATCH<UP.BATCH.RECORD.STATUS> = ""
+    CALL F.WRITE(FN.ATI.TL.AUP.UP.BATCH, Y.BATCH.CONCAT.ID, R.ATI.TL.AUP.UP.BATCH)
+
+*-Delete Batch Data Concate---------------------------------------------------
+    CALL F.DELETE(FN.ATI.TT.AUP.UP.BATCH.CONCAT, Y.BATCH.CONCAT.ID)
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+GET.AMOUNT:
+*-----------------------------------------------------------------------------
+
+    IF Y.CURRENCY NE LCCY THEN
+        Y.AMT.FCY   = Y.AMOUNT
+        Y.AMT.LCY   = ""
+        Y.EXCH.RATE = ""
+
+        CALL EXCHRATE(1, Y.CURRENCY, Y.AMT.FCY, LCCY, Y.AMT.LCY, "", Y.EXCH.RATE, "", "", "")
+        CALL EB.ROUND.AMOUNT(LCCY, Y.AMT.LCY, "", "")
+    END ELSE
+        Y.AMT.LCY = Y.AMOUNT
+    END
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+GET.ENTRIES.DB:
+*-----------------------------------------------------------------------------
+    Y.ENTRY.NO += 1
+    Y.NUM       = Y.ENTRY.NO
+
+    IF LEN(Y.ACCOUNT.NUMBER) GT 5 THEN
+        Y.ENTRIES<Y.NUM, AC.STE.ACCOUNT.NUMBER>   = Y.ACCOUNT.NUMBER
+    END ELSE
+        Y.ENTRIES<Y.NUM, AC.STE.PL.CATEGORY>      = Y.PL.CATEGORY
+        Y.ENTRIES<Y.NUM, AC.STE.PRODUCT.CATEGORY> = Y.PRODUCT.CATEGORY
+    END
+
+    IF Y.CURRENCY EQ LCCY THEN
+        Y.ENTRIES<Y.NUM, AC.STE.AMOUNT.LCY>    = NEG(Y.AMT.LCY)
+    END ELSE
+        Y.ENTRIES<Y.NUM, AC.STE.AMOUNT.FCY>    = NEG(Y.AMT.FCY)
+        Y.ENTRIES<Y.NUM, AC.STE.EXCHANGE.RATE> = Y.EXCH.RATE
+        Y.ENTRIES<Y.NUM, AC.STE.AMOUNT.LCY>    = NEG(Y.AMT.LCY)
+    END
+
+    Y.ENTRIES<Y.NUM, AC.STE.TRANSACTION.CODE>  = Y.TRANSACTION.CODE
+
+    GOSUB GET.COMMON.ENTRIES
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+GET.ENTRIES.CR:
+*-----------------------------------------------------------------------------
+    Y.ENTRY.NO += 1
+    Y.NUM       = Y.ENTRY.NO
+
+    IF LEN(Y.ACCOUNT.NUMBER) GT 5 THEN
+        Y.ENTRIES<Y.NUM, AC.STE.ACCOUNT.NUMBER>   = Y.ACCOUNT.NUMBER
+    END ELSE
+        Y.ENTRIES<Y.NUM, AC.STE.PL.CATEGORY>      = Y.PL.CATEGORY
+        Y.ENTRIES<Y.NUM, AC.STE.PRODUCT.CATEGORY> = Y.PRODUCT.CATEGORY
+    END
+
+    IF Y.CURRENCY EQ LCCY THEN
+        Y.ENTRIES<Y.NUM, AC.STE.AMOUNT.LCY>    = Y.AMT.LCY
+    END ELSE
+        Y.ENTRIES<Y.NUM, AC.STE.AMOUNT.FCY>    = Y.AMT.FCY
+        Y.ENTRIES<Y.NUM, AC.STE.EXCHANGE.RATE> = Y.EXCH.RATE
+        Y.ENTRIES<Y.NUM, AC.STE.AMOUNT.LCY>    = Y.AMT.LCY
+    END
+
+    Y.ENTRIES<Y.NUM, AC.STE.TRANSACTION.CODE>  = Y.TRANSACTION.CODE
+
+    GOSUB GET.COMMON.ENTRIES
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+GET.COMMON.ENTRIES:
+*-----------------------------------------------------------------------------
+    CONVERT VM TO SM IN Y.NARRATIVE
+
+    Y.ENTRIES<Y.NUM, AC.STE.NARRATIVE>       = Y.NARRATIVE
+    Y.ENTRIES<Y.NUM, AC.STE.TRANS.REFERENCE> = Y.UP.DATA.ID
+    Y.ENTRIES<Y.NUM, AC.STE.OUR.REFERENCE>   = Y.UP.DATA.ID
+    Y.ENTRIES<Y.NUM, AC.STE.THEIR.REFERENCE> = Y.ENTRY.NO 'R%5'
+
+    Y.ENTRIES<Y.NUM, AC.STE.ACCOUNT.OFFICER> = Y.ACCOUNT.OFFICER
+    Y.ENTRIES<Y.NUM, AC.STE.POSITION.TYPE>   = "TR"
+    Y.ENTRIES<Y.NUM, AC.STE.DEPARTMENT.CODE> = Y.ACCOUNT.OFFICER
+
+    IF Y.ENTRIES<Y.NUM, AC.STE.PL.CATEGORY> EQ "" THEN
+        Y.ENTRIES<Y.NUM, AC.STE.CURRENCY> = Y.CURRENCY
+    END ELSE
+        Y.ENTRIES<Y.NUM, AC.STE.CURRENCY> = LCCY
+    END
+
+    Y.ENTRIES<Y.NUM, AC.STE.COMPANY.CODE>    = Y.CO.CODE
+    Y.ENTRIES<Y.NUM, AC.STE.VALUE.DATE>      = Y.VALUE.DATE
+    Y.ENTRIES<Y.NUM, AC.STE.BOOKING.DATE>    = TODAY
+    Y.ENTRIES<Y.NUM, AC.STE.CURRENCY.MARKET> = "1"
+    Y.ENTRIES<Y.NUM, AC.STE.SYSTEM.ID>       = "AC"
+    Y.ENTRIES<Y.NUM, AC.STE.INPUTTER>        = Y.INPUTTER
+    Y.ENTRIES<Y.NUM, AC.STE.AUTHORISER>      = Y.AUTHORISER
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+POST.JOURNAL.ENTRY:
+*-----------------------------------------------------------------------------
+    IF Y.ENTRIES NE "" THEN
+        Y.SYSTEM.ID = "AC"
+        Y.TYPE      = "SAO"
+        V           = 500
+
+        IF C$MULTI.BOOK AND Y.CO.CODE NE ID.COMPANY THEN
+            CALL LOAD.COMPANY(Y.CO.CODE)
+        END
+
+        CALL EB.ACCOUNTING(Y.SYSTEM.ID, Y.TYPE, Y.ENTRIES, '')
+
+        GOSUB GET.ID.ENTRY
+    END
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+GET.ID.ENTRY:
+*-----------------------------------------------------------------------------
+    FOR J = 1 TO Y.UP.DATA.CNT
+        Y.UP.DATA.ID = Y.UP.DATA.LIST<J>
+
+        FIND Y.UP.DATA.ID IN STMT.ENTRIES.WITH.IDS SETTING POSF, POSV, POSS THEN
+            Y.ENTRY.ID = STMT.ENTRIES.WITH.IDS<POSF, AC.STE.STMT.NO>
+*-Write to table GL Data Live-------------------------------------------------
+            CALL F.READ(FN.ATI.TH.AUP.UP.DATA.NAU, Y.UP.DATA.ID, R.ATI.TH.AUP.UP.DATA.NAU, F.ATI.TH.AUP.UP.DATA.NAU, ERR.ATI.TH.AUP.UP.DATA.NAU)
+            R.ATI.TH.AUP.UP.DATA.NAU<UP.DATA.BATCH.ID> = Y.BATCH.CONCAT.ID
+            R.ATI.TH.AUP.UP.DATA.NAU<UP.DATA.STMT.NO>  = Y.ENTRY.ID
+
+            R.ATI.TH.AUP.UP.DATA.NAU<UP.DATA.RECORD.STATUS> = ""
+            R.ATI.TH.AUP.UP.DATA.NAU<UP.DATA.AUTHORISER>    = TNO:"_":OPERATOR
+            R.ATI.TH.AUP.UP.DATA.NAU<UP.DATA.DATE.TIME>     = Y.DATE.TIME
+            R.ATI.TH.AUP.UP.DATA.NAU<UP.DATA.DEPT.CODE>     = R.USER<EB.USE.DEPARTMENT.CODE>
+
+            CALL F.WRITE(FN.ATI.TH.AUP.UP.DATA, Y.UP.DATA.ID, R.ATI.TH.AUP.UP.DATA.NAU)
+
+*-Delete GL Data Inau---------------------------------------------------------
+            CALL F.DELETE(FN.ATI.TH.AUP.UP.DATA.NAU, Y.UP.DATA.ID)
+        END
+    NEXT J
+
+    RETURN
+*-----------------------------------------------------------------------------
+END
+
+
+
+
+
+
+
+
+
+
+
+
+
+

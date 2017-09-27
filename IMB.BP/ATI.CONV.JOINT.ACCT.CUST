@@ -1,0 +1,90 @@
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ATI.CONV.JOINT.ACCT.CUST
+*-----------------------------------------------------------------------------
+* Developer Name     : ATI Yudistia Putri
+* Development Date   : 20151207
+* Description        : Routine to make multivalue line in enquiry
+*-----------------------------------------------------------------------------
+* Modification History:-
+*-----------------------------------------------------------------------------
+* Date               : 20170504
+* Modified by        : ATI-Yudistia Adnan
+* Description        : Add condition for ati.joint.name
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+    $INSERT I_F.ACCOUNT
+    $INSERT I_F.CUSTOMER
+*-----------------------------------------------------------------------------
+MAIN:
+*-----------------------------------------------------------------------------
+    GOSUB INIT
+    GOSUB PROCESS
+
+    RETURN
+*-----------------------------------------------------------------------------
+INIT:
+*-----------------------------------------------------------------------------
+
+    FN.ACCOUNT = "F.ACCOUNT"
+    F.ACCOUNT  = ""
+    CALL OPF(FN.ACCOUNT, F.ACCOUNT)
+
+    FN.CUSTOMER = "F.CUSTOMER"
+    F.CUSTOMER  = ""
+    CALL OPF(FN.CUSTOMER, F.CUSTOMER)
+
+    Y.APP.NAME = "ACCOUNT"
+    Y.FLD.NAME = "ATI.JOINT.NAME"
+    Y.POS      = ""
+    CALL MULTI.GET.LOC.REF(Y.APP.NAME,Y.FLD.NAME, Y.POS)
+
+    Y.ATI.JOINT.NAME.POS = Y.POS<1,1>
+    Y.FIX.JOINT.NAME     = ""
+
+    RETURN
+*-----------------------------------------------------------------------------
+PROCESS:
+*-----------------------------------------------------------------------------
+    Y.DATA.ID = O.DATA
+
+    CALL F.READ(FN.ACCOUNT, Y.DATA.ID, R.ACCOUNT, F.ACCOUNT, ERR.ACCOUNT)
+    Y.ATI.JOIN.NAME = R.ACCOUNT<AC.LOCAL.REF, Y.ATI.JOINT.NAME.POS>
+*20170504_Yudistia Adnan
+    IF Y.ATI.JOIN.NAME EQ "" THEN
+        Y.ATI.JOIN.NAME = R.ACCOUNT<AC.ACCOUNT.TITLE.1>
+    END
+*20170504_Yudistia Adnan
+
+    CONVERT SM TO " " IN Y.ATI.JOIN.NAME
+
+    Y.CUS.ID = R.ACCOUNT<AC.CUSTOMER>
+    CALL F.READ(FN.CUSTOMER, Y.CUS.ID, R.CUSTOMER, F.CUSTOMER, ERR.CUSTOMER)
+    Y.SHORT.NAME = R.CUSTOMER<EB.CUS.SHORT.NAME>
+
+    Y.CON.DATA = Y.ATI.JOIN.NAME : " / (" : Y.CUS.ID : ") " : Y.SHORT.NAME
+
+    IF Y.CON.DATA NE " / () " THEN
+        Y.ROW.DATA = FMT(Y.CON.DATA, '35T')
+
+        CONVERT @TM TO FM IN Y.ROW.DATA
+
+        Y.DATA = Y.ROW.DATA<1> : "*" : Y.ROW.DATA<2> : "*" : Y.ROW.DATA<3> : "*" : Y.ROW.DATA<4>
+    END
+
+    O.DATA   = Y.DATA
+
+
+    RETURN
+*-----------------------------------------------------------------------------
+END
+
+
+
+
+
+
+

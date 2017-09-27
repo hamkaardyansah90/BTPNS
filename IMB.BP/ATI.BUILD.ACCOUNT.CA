@@ -1,0 +1,88 @@
+*-----------------------------------------------------------------------------
+* <Rating>-34</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ATI.BUILD.ACCOUNT.CA(ENQ.DATA)
+*-----------------------------------------------------------------------------
+* Developer Name     : ATI Mauizah Hasanah
+* Development Date   : 15 September 2016
+* Description        : Routine for build selection in giro enquiry
+*-----------------------------------------------------------------------------
+* Modification History:-
+*-----------------------------------------------------------------------------
+* Date               : 15 September 2017
+* Modified by        : ATI Yudistia Adnan
+* Description        : Change ALL logic for selection in giro enquiry
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+
+*-----------------------------------------------------------------------------
+MAIN:
+*-----------------------------------------------------------------------------
+    GOSUB INIT
+    GOSUB PROCESS
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+INIT:
+*-----------------------------------------------------------------------------
+
+    FN.ATI.AC.JOINT.HOLDER = "F.ATI.TT.AC.JOINT.HOLDER"
+    F.ATI.AC.JOINT.HOLDER  = ""
+    CALL OPF(FN.ATI.AC.JOINT.HOLDER, F.ATI.AC.JOINT.HOLDER)
+
+    FN.CUSTOMER.ACCOUNT = "F.CUSTOMER.ACCOUNT"
+    F.CUSTOMER.ACCOUNT  = ""
+    CALL OPF(FN.CUSTOMER.ACCOUNT, F.CUSTOMER.ACCOUNT)
+*/20170915_ATI Yudistia Adna
+    FIND "CUSTOMER" IN ENQ.DATA<2> SETTING Y.AF,Y.AV THEN
+        Y.CUSTOMER.POS = ENQ.DATA<4, Y.AV>
+    END
+*/20170915_ATI Yudistia Adna
+    RETURN
+
+*-----------------------------------------------------------------------------
+PROCESS:
+*-----------------------------------------------------------------------------
+    CALL F.READ(FN.CUSTOMER.ACCOUNT, Y.CUSTOMER.POS, R.CUSTOMER.ACCOUNT, F.CUSTOMER.ACCOUNT, CUSTOMER.ACCOUNT.ERR)
+    CALL F.READ(FN.ATI.AC.JOINT.HOLDER, Y.CUSTOMER.POS, R.ATI.AC.JOINT.HOLDER, F.ATI.AC.JOINT.HOLDER, ATI.AC.JOINT.HOLDER.ERR)
+
+*/20170915_ATI Yudistia Adnan
+    Y.ACCOUNT.LIST = R.CUSTOMER.ACCOUNT : FM : R.ATI.AC.JOINT.HOLDER
+    Y.ACCT.CNT = DCOUNT(Y.ACCOUNT.LIST, FM)
+
+    FOR Y.LOOP = 1 TO Y.ACCT.CNT
+        Y.ACCOUNT = Y.ACCOUNT.LIST<Y.LOOP>
+
+        FIND Y.ACCOUNT IN Y.ACCOUNT.TEMP<1> SETTING Y.AF ELSE
+            Y.ACCOUNT.TEMP<-1> = Y.ACCOUNT
+        END
+    NEXT Y.LOOP
+
+    CONVERT FM TO " " IN Y.ACCOUNT.TEMP
+    IF Y.ACCOUNT.TEMP THEN
+        ENQ.DATA<2,Y.AV> = ""
+        ENQ.DATA<3,Y.AV> = ""
+        ENQ.DATA<4,Y.AV> = ""
+
+        ENQ.DATA<2,Y.AV> = "@ID"
+        ENQ.DATA<3,Y.AV> = "EQ"
+        ENQ.DATA<4,Y.AV> = Y.ACCOUNT.TEMP
+    END
+*/20170915_ATI Yudistia Adnan
+
+    RETURN
+*-----------------------------------------------------------------------------
+END
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,72 @@
+*-----------------------------------------------------------------------------
+* <Rating>-61</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ATI.BM.UPD.LLC.FLD.LOAD
+*-----------------------------------------------------------------------------
+* Developer Name     : 20170713
+* Development Date   : Novi Leo
+* Description        : Routine to update from old LLC field to new LLC field
+*-----------------------------------------------------------------------------
+* Modification History:-
+*-----------------------------------------------------------------------------
+* Date               :
+* Modified by        :
+* Description        :
+*-----------------------------------------------------------------------------
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ATI.BM.UPD.LLC.FLD.COMMON
+
+*-----------------------------------------------------------------------------
+MAIN:
+*-----------------------------------------------------------------------------
+
+    GOSUB INIT
+    GOSUB PROCESS
+
+    RETURN
+*-----------------------------------------------------------------------------
+INIT:
+*-----------------------------------------------------------------------------
+
+    FN.CUSTOMER = "F.CUSTOMER"
+    F.CUSTOMER  = ""
+    CALL OPF(FN.CUSTOMER, F.CUSTOMER)
+
+    Y.APP       = "CUSTOMER"
+    Y.FLD.NAME  = "DESTINATION.ACC":VM:"PIC.CALL.BACK":VM:"CALL.BACK.NO"
+    Y.FLD.NAME := VM:"CUST.TYPE":VM:"LLC.Y.N":VM:"ATI.LLC.ACC"
+    Y.FLD.NAME := VM:"ATI.LLC.PIC":VM:"ATI.LLC.CALL.1"
+    Y.POS       = ""
+    CALL MULTI.GET.LOC.REF(Y.APP,Y.FLD.NAME,Y.POS)
+    Y.DESTINATION.ACC.POS = Y.POS<1, 1>
+    Y.PIC.CALL.BACK.POS   = Y.POS<1, 2>
+    Y.CALL.BACK.NO.POS    = Y.POS<1, 3>
+    Y.CUST.TYPE.POS       = Y.POS<1, 4>
+    Y.LLC.Y.N.POS         = Y.POS<1, 5>
+    Y.ATI.LLC.ACC.POS     = Y.POS<1, 6>
+    Y.ATI.LLC.PIC.POS     = Y.POS<1, 7>
+    Y.ATI.LLC.CALL.1.POS  = Y.POS<1, 8>
+
+    RETURN
+*-----------------------------------------------------------------------------
+PROCESS:
+*-----------------------------------------------------------------------------
+
+*Y.OFS.SOURCE = "GENERIC.OFS.PROCESS"
+*CALL OFS.INITIALISE.SOURCE(Y.OFS.SOURCE,"", "LOG.ERROR")
+
+    RETURN
+*-----------------------------------------------------------------------------
+END
+
+
+
+
+
+
+
+
+
+

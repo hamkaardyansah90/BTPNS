@@ -1,0 +1,159 @@
+*-----------------------------------------------------------------------------
+* <Rating>29</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ATI.TH.AUP.DATA.PROCESS
+*-----------------------------------------------------------------------------
+* Developer Name     : ATI Juan Felix
+* Development Date   : 20170120
+* Description        : Routine for checking data texfile with T24 during upload
+*-----------------------------------------------------------------------------
+* Modification History:-
+*-----------------------------------------------------------------------------
+* Date            Modified by                Description
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_GTS.COMMON
+    $INSERT I_F.ATI.TH.AUP.DATA
+    $INSERT I_F.ATI.TH.AUP.PARAM
+    $INSERT I_F.ATI.TH.AUP.UP.DATA
+    $INSERT I_F.ATI.TH.AUP.MSG.ERR.DATA
+
+*-----------------------------------------------------------------------------
+MAIN:
+*-----------------------------------------------------------------------------
+    Y.STATUS = R.NEW(AUP.DATA.STATUS)
+
+    IF (V$FUNCTION EQ "I") THEN
+        GOSUB INIT
+
+
+        BEGIN CASE
+        CASE Y.STATUS EQ "INPUT"
+            GOSUB PROCESS.INPUT
+
+        CASE Y.STATUS EQ "AUTHORISING"
+            GOSUB PROCESS.AUTHORISING
+        END CASE
+    END
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+INIT:
+*-----------------------------------------------------------------------------
+    FN.ATI.TH.AUP.PARAM = "F.ATI.TH.AUP.PARAM"
+    CALL OPF(FN.ATI.TH.AUP.PARAM, F.ATI.TH.AUP.PARAM)
+
+    FN.ATI.TH.AUP.UP.DATA.NAU = "F.ATI.TH.AUP.UP.DATA$NAU"
+    CALL OPF(FN.ATI.TH.AUP.UP.DATA.NAU, F.ATI.TH.AUP.UP.DATA.NAU)
+
+    FN.ATI.TH.AUP.MSG.ERR.DATA = "F.ATI.TH.AUP.MSG.ERR.DATA"
+    CALL OPF(FN.ATI.TH.AUP.MSG.ERR.DATA, F.ATI.TH.AUP.MSG.ERR.DATA)
+
+    CALL F.READ(FN.ATI.TH.AUP.PARAM, "SYSTEM", R.ATI.TH.AUP.PARAM, F.ATI.TH.AUP.PARAM, ERR.ATI.TH.AUP.PARAM)
+    Y.FOLDER.NAME = R.ATI.TH.AUP.PARAM<AUP.PARAM.FOLDER.NAME>
+
+    FN.FOLDER = "../bnk.run/" : Y.FOLDER.NAME
+    OPEN FN.FOLDER TO F.FOLDER ELSE
+        DISPLAY "ERR.OPEN.INPUT.FILE = " : FN.FOLDER
+
+        GOTO PROGRAM.ABORT
+    END
+
+    Y.DATE      = OCONV(DATE(),"D-")
+    Y.REAL.DATE = Y.DATE[7,4] : Y.DATE[1,2] : Y.DATE[4,2]
+    R.ATI.TH.AUP.MSG.ERR.DATA = ""
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+PROCESS.INPUT:
+*-----------------------------------------------------------------------------
+    Y.FILE.NAME = R.NEW(AUP.DATA.FILE.NAME)
+    CALL F.READ(FN.FOLDER, Y.FILE.NAME, R.FOLDER, F.FOLDER, FOLDER.ERR)
+
+    IF OFS$OPERATION EQ "VALIDATE" THEN
+        RETURN
+    END
+
+    CALL ATI.UP.DATA.T24.VAL(R.FOLDER, "TEXTFILE", Y.ERROR.MSG.LIST)
+
+    IF Y.ERROR.MSG.LIST THEN
+        GOSUB WRITE.ERR.MESSAGES
+
+        AF    = AUP.DATA.FILE.NAME
+        ETEXT = "Error data textfile"
+        CALL STORE.END.ERROR
+
+        OFS$BROWSER.MESSAGES = Y.ERROR.MSG.LIST
+    END
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+PROCESS.AUTHORISING:
+*-----------------------------------------------------------------------------
+    SEL.CMD = "SELECT " : FN.ATI.TH.AUP.UP.DATA.NAU : " WITH AUP.ID EQ " : ID.NEW
+    CALL EB.READLIST(SEL.CMD, SEL.LIST, "", SEL.CNT, SEL.ERR)
+
+    IF OFS$OPERATION EQ "VALIDATE" THEN
+        RETURN
+    END
+
+    CALL ATI.UP.DATA.T24.VAL(SEL.LIST, "TABLE", Y.ERROR.MSG.LIST)
+
+    IF Y.ERROR.MSG.LIST THEN
+        GOSUB WRITE.ERR.MESSAGES
+
+        AF    = AUP.DATA.FILE.NAME
+        ETEXT = "Error data textfile"
+        CALL STORE.END.ERROR
+
+        OFS$BROWSER.MESSAGES = Y.ERROR.MSG.LIST
+    END
+
+    RETURN
+*-----------------------------------------------------------------------------
+WRITE.ERR.MESSAGES:
+*-----------------------------------------------------------------------------
+    AUP.ID = ID.NEW
+    Y.ERROR.DATA.LIST = Y.ERROR.MSG.LIST
+
+    CONVERT FM TO VM IN Y.ERROR.DATA.LIST
+
+    SEL.DATA = "SELECT " : FN.ATI.TH.AUP.MSG.ERR.DATA : " WITH @ID LIKE " : AUP.ID : "..."
+    CALL EB.READLIST(SEL.DATA, SEL.DATA.LIST, "", SEL.CNT.DATA, SEL.ERR.DATA)
+
+    Y.MSG.ERR.ID = SEL.DATA.LIST<SEL.CNT.DATA>
+    CALL F.READ(FN.ATI.TH.AUP.MSG.ERR.DATA, Y.MSG.ERR.ID, R.MSG.ERR.DATA, F.ATI.TH.AUP.MSG.ERR.DATA, ERR.MSG.ERR.DATA)
+
+    Y.LAST.ERROR = R.MSG.ERR.DATA<AUP.ERR.DATA.ERROR.DESC>
+    SEL.CNT.DATA += 1
+
+    R.ATI.TH.AUP.MSG.ERR.DATA<AUP.ERR.DATA.FILE.NAME>   = R.NEW(AUP.DATA.FILE.NAME)
+    R.ATI.TH.AUP.MSG.ERR.DATA<AUP.ERR.DATA.REAL.DATE>   = Y.REAL.DATE
+    R.ATI.TH.AUP.MSG.ERR.DATA<AUP.ERR.DATA.USER.INPUT>  = R.NEW(AUP.DATA.USER.INPUT)
+    R.ATI.TH.AUP.MSG.ERR.DATA<AUP.ERR.DATA.ERROR.DESC>  = Y.ERROR.DATA.LIST
+
+    Y.MSG.ERR.ID = AUP.ID : "." : SEL.CNT.DATA
+
+    IF Y.LAST.ERROR NE Y.ERROR.DATA.LIST THEN
+*WRITE R.ATI.TH.AUP.MSG.ERR.DATA TO F.ATI.TH.AUP.MSG.ERR.DATA, Y.MSG.ERR.ID
+        CALL ID.LIVE.WRITE(FN.ATI.TH.AUP.MSG.ERR.DATA, Y.MSG.ERR.ID, R.ATI.TH.AUP.MSG.ERR.DATA)
+        CALL JOURNAL.UPDATE('')
+    END
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+PROGRAM.ABORT:
+*-----------------------------------------------------------------------------
+    RETURN TO PROGRAM.ABORT
+*-----------------------------------------------------------------------------
+END
+
+
+
+
+

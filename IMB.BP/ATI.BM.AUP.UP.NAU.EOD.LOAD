@@ -1,0 +1,62 @@
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ATI.BM.AUP.UP.NAU.EOD.LOAD
+*-----------------------------------------------------------------------------
+* Developer Name     : ATI Juan Felix
+* Development Date   : 20170123
+* Description        : Batch Routine Multi End Of Day Data Upload UP Move Record Inau
+*-----------------------------------------------------------------------------
+* Modification History:-
+*-----------------------------------------------------------------------------
+* Date            Modified by                Description
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.ATI.TH.AUP.UP.DATA
+    $INSERT I_F.ATI.TH.AUP.UP.DATA.NAU.DEL
+    $INSERT I_F.ATI.TH.AUP.DATA
+    $INSERT I_ATI.BM.AUP.UP.NAU.EOD.COMMON
+
+*-----------------------------------------------------------------------------
+MAIN:
+*-----------------------------------------------------------------------------
+    GOSUB INIT
+    GOSUB PROCESS
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+INIT:
+*-----------------------------------------------------------------------------
+    FN.ATI.TH.AUP.UP.DATA.NAU = "F.ATI.TH.AUP.UP.DATA$NAU"
+    CALL OPF(FN.ATI.TH.AUP.UP.DATA.NAU, F.ATI.TH.AUP.UP.DATA.NAU)
+
+    FN.ATI.TH.AUP.UP.DATA.NAU.DEL = "F.ATI.TH.AUP.UP.DATA.NAU.DEL"
+    CALL OPF(FN.ATI.TH.AUP.UP.DATA.NAU.DEL, F.ATI.TH.AUP.UP.DATA.NAU.DEL)
+
+    FN.ATI.TH.AUP.DATA = "F.ATI.TH.AUP.DATA"
+    CALL OPF(FN.ATI.TH.AUP.DATA, F.ATI.TH.AUP.DATA)
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+PROCESS:
+*-----------------------------------------------------------------------------
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+END
+
+
+
+
+
+
+
+
+
+
+
+

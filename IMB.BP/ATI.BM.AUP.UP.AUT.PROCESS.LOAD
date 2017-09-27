@@ -1,0 +1,76 @@
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ATI.BM.AUP.UP.AUT.PROCESS.LOAD
+*-----------------------------------------------------------------------------
+* Developer Name     : ATI Juan Felix
+* Development Date   : 20170124
+* Description        : Batch Routine Multi for create EB.ACCOUNTING upload UP
+*-----------------------------------------------------------------------------
+* Modification History:-
+*-----------------------------------------------------------------------------
+* Date            Modified by                Description
+* 20170327        ATI Yudistia Adnan         Change reverse batch write to temporary table
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.LOCKING
+    $INSERT I_BATCH.FILES
+    $INSERT I_F.STMT.ENTRY
+    $INSERT I_F.USER
+    $INSERT I_ACCT.COMMON
+    $INSERT I_F.ATI.TH.AUP.UP.DATA
+    $INSERT I_F.ATI.TL.AUP.UP.BATCH
+    $INSERT I_F.ATI.TT.AUP.UP.BATCH.CONCAT
+    $INSERT I_F.ATI.TH.AUP.DATA
+    $INSERT I_ATI.BM.AUP.UP.AUT.PROCESS.COMMON
+    $INSERT I_F.ATI.TT.AUP.REVE.SERVICE.TEMP
+
+*-----------------------------------------------------------------------------
+MAIN:
+*-----------------------------------------------------------------------------
+    GOSUB INIT
+    GOSUB PROCESS
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+INIT:
+*-----------------------------------------------------------------------------
+    FN.ATI.TH.AUP.DATA = "F.ATI.TH.AUP.DATA"
+    CALL OPF(FN.ATI.TH.AUP.DATA, F.ATI.TH.AUP.DATA)
+
+    FN.ATI.TH.AUP.UP.DATA = "F.ATI.TH.AUP.UP.DATA"
+    CALL OPF(FN.ATI.TH.AUP.UP.DATA, F.ATI.TH.AUP.UP.DATA)
+
+    FN.ATI.TH.AUP.UP.DATA.NAU = "F.ATI.TH.AUP.UP.DATA$NAU"
+    CALL OPF(FN.ATI.TH.AUP.UP.DATA.NAU, F.ATI.TH.AUP.UP.DATA.NAU)
+
+    FN.ATI.TL.AUP.UP.BATCH = "F.ATI.TL.AUP.UP.BATCH"
+    CALL OPF(FN.ATI.TL.AUP.UP.BATCH, F.ATI.TL.AUP.UP.BATCH)
+
+    FN.ATI.TT.AUP.UP.BATCH.CONCAT = "F.ATI.TT.AUP.UP.BATCH.CONCAT"
+    CALL OPF(FN.ATI.TT.AUP.UP.BATCH.CONCAT, F.ATI.TT.AUP.UP.BATCH.CONCAT)
+
+    FN.ATI.TT.AUP.REVE.SERVICE.TEMP = "F.ATI.TT.AUP.REVE.SERVICE.TEMP"
+    F.ATI.TT.AUP.REVE.SERVICE.TEMP  = ""
+    CALL OPF(FN.ATI.TT.AUP.REVE.SERVICE.TEMP, F.ATI.TT.AUP.REVE.SERVICE.TEMP)
+    RETURN
+
+*-----------------------------------------------------------------------------
+PROCESS:
+*-----------------------------------------------------------------------------
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+END
+
+
+
+
+
+
+
+
+

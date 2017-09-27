@@ -1,0 +1,111 @@
+*-----------------------------------------------------------------------------
+* <Rating>-81</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ATI.BM.AUP.UP.DEL.PROCESS.SELECT
+*-----------------------------------------------------------------------------
+* Developer Name     : ATI Juan Felix
+* Development Date   : 20170124
+* Description        : Batch Routine Multi for Reject upload UP
+*-----------------------------------------------------------------------------
+* Modification History:-
+*-----------------------------------------------------------------------------
+* Date            Modified by                Description
+* 20170327        ATI Yudistia Adnan         Change reverse batch write to temporary table
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.LOCKING
+    $INSERT I_BATCH.FILES
+    $INSERT I_F.ATI.TH.AUP.UP.DATA
+    $INSERT I_F.ATI.TL.AUP.UP.BATCH
+    $INSERT I_F.ATI.TT.AUP.UP.BATCH.CONCAT
+    $INSERT I_F.ATI.TH.AUP.DATA
+    $INSERT I_ATI.BM.AUP.UP.DEL.PROCESS.COMMON
+
+*-----------------------------------------------------------------------------
+MAIN:
+*-----------------------------------------------------------------------------
+    GOSUB INIT
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+INIT:
+*-----------------------------------------------------------------------------
+    Y.AUP.ID     = BATCH.DETAILS<3,1>
+    Y.BATCH.ID   = BATCH.INFO<1>
+    Y.OFS.SOURCE = "GENERIC.OFS.PROCESS"
+
+    Y.OFS.MESSAGE   = ""
+    PROCESS.GOAHEAD = ""
+
+    IF CONTROL.LIST EQ "" THEN
+        CONTROL.LIST = "PROCESS" : FM : "FINAL.UPDATE"
+    END
+
+    Y.CONTROL.LIST.FUNCTION = CONTROL.LIST<1,1>
+
+    BEGIN CASE
+    CASE Y.CONTROL.LIST.FUNCTION EQ "PROCESS"
+        GOSUB PROCESS
+
+    CASE Y.CONTROL.LIST.FUNCTION EQ "FINAL.UPDATE"
+        GOSUB FINAL.UPDATE
+    END CASE
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+PROCESS:
+*-----------------------------------------------------------------------------
+    SEL.CMD  = "SELECT " : FN.ATI.TT.AUP.UP.BATCH.CONCAT : " WITH @ID EQ '" : Y.AUP.ID : "...'"
+    SEL.LIST = ""
+    CALL EB.READLIST(SEL.CMD, SEL.LIST, "", SEL.CNT, SEL.ERR)
+
+    CALL BATCH.BUILD.LIST("", SEL.LIST)
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+FINAL.UPDATE:
+*-----------------------------------------------------------------------------
+    GOSUB UPDATE.TABLE
+    GOSUB REVERSE.SERVICE.DELETE
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+UPDATE.TABLE:
+*-----------------------------------------------------------------------------
+    CALL F.READ(FN.ATI.TH.AUP.DATA, Y.AUP.ID, R.ATI.TH.AUP.DATA, F.ATI.TH.AUP.DATA, ERR.ATI.TH.AUP.DATA)
+    R.ATI.TH.AUP.DATA<AUP.DATA.STATUS> = "REJECT"
+    CALL F.WRITE(FN.ATI.TH.AUP.DATA, Y.AUP.ID, R.ATI.TH.AUP.DATA)
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+REVERSE.SERVICE.DELETE:
+*-----------------------------------------------------------------------------
+    Y.OFS.MESSAGE<-1> = "BATCH,/R///0,//," : Y.BATCH.ID
+    Y.OFS.MESSAGE<-1> = "TSA.SERVICE,/R///0,//," : Y.BATCH.ID
+    Y.OFS.MESSAGE<-1> = "TSA.WORKLOAD.PROFILE,/R///0,//," : Y.BATCH.ID
+
+*<20170327_Yudistia Adnan
+*   CALL OFS.POST.MESSAGE(Y.OFS.MESSAGE, Y.OFS.MSG.ID, Y.OFS.SOURCE, OPERATOR)
+    WRITE Y.OFS.MESSAGE TO F.ATI.TT.AUP.REVE.SERVICE.TEMP, Y.BATCH.ID
+*>20170327_Yudistia Adnan
+
+    RETURN
+*-----------------------------------------------------------------------------
+END
+
+
+
+
+
+
+
+
+
+
+

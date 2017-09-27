@@ -1,0 +1,80 @@
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ATI.GC.AC.JOINT.NAME(Y.JOINT.NAME, Y.CONV.POS, Y.CONV.REAL.POS)
+*-----------------------------------------------------------------------------
+* Developer Name     : ATI Yudistia Adnan Putri
+* Development Date   : 20170331
+* Description        : Routine deal slip to show joint holder
+*-----------------------------------------------------------------------------
+* Modification History:-
+*-----------------------------------------------------------------------------
+* Date               :
+* Modified by        :
+* Description        :
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.ACCOUNT
+    $INSERT I_F.VERSION
+    $INSERT I_F.DEAL.SLIP.FORMAT
+*-----------------------------------------------------------------------------
+MAIN:
+*-----------------------------------------------------------------------------
+    GOSUB INIT
+    GOSUB PROCESS
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+INIT:
+*-----------------------------------------------------------------------------
+    Y.FIX.JOINT.NAME = ""
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+PROCESS:
+*-----------------------------------------------------------------------------
+    Y.JOINT.HOLDER.NAME = Y.JOINT.NAME
+
+    CONVERT SM TO " " IN Y.JOINT.HOLDER.NAME
+    Y.ROW.DATA = FMT(Y.JOINT.HOLDER.NAME, '35T')
+
+    CONVERT @TM TO FM IN Y.ROW.DATA
+
+    Y.ROW.CNT = DCOUNT(Y.ROW.DATA, FM)
+
+    FOR Y.LOOP = 1 TO Y.ROW.CNT
+        IF Y.FIX.JOINT.NAME EQ "" THEN
+            Y.FIX.JOINT.NAME<-1> = FMT(Y.ROW.DATA<Y.LOOP>, Y.CONV.POS:"L")
+        END
+        ELSE
+            Y.FIX.JOINT.NAME<-1> = FMT("", Y.CONV.REAL.POS:"R") : Y.ROW.DATA<Y.LOOP>
+        END
+    NEXT
+
+    CONVERT FM TO CHAR(10) IN Y.FIX.JOINT.NAME
+    Y.PRINT.JOINT.NAME = Y.FIX.JOINT.NAME
+
+    Y.JOINT.NAME = Y.PRINT.JOINT.NAME
+
+    RETURN
+*-----------------------------------------------------------------------------
+END
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

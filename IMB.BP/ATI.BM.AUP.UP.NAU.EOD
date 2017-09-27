@@ -1,0 +1,61 @@
+*-----------------------------------------------------------------------------
+* <Rating>-31</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ATI.BM.AUP.UP.NAU.EOD(Y.UP.ID)
+*-----------------------------------------------------------------------------
+* Developer Name     : ATI Juan Felix
+* Development Date   : 20170123
+* Description        : Batch Routine Multi End Of Day Data Upload UP Move Record Inau
+*-----------------------------------------------------------------------------
+* Modification History:-
+*-----------------------------------------------------------------------------
+* Date            Modified by                Description
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_F.ATI.TH.AUP.UP.DATA
+    $INSERT I_F.ATI.TH.AUP.UP.DATA.NAU.DEL
+    $INSERT I_F.ATI.TH.AUP.DATA
+    $INSERT I_ATI.BM.AUP.UP.NAU.EOD.COMMON
+
+*-----------------------------------------------------------------------------
+MAIN:
+*-----------------------------------------------------------------------------
+    GOSUB INIT
+    GOSUB PROCESS
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+INIT:
+*-----------------------------------------------------------------------------
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+PROCESS:
+*-----------------------------------------------------------------------------
+    CALL F.READ(FN.ATI.TH.AUP.UP.DATA.NAU, Y.UP.ID, R.ATI.TH.AUP.UP.DATA.NAU, F.ATI.TH.AUP.UP.DATA.NAU, ERR.ATI.TH.AUP.UP.DATA.NAU)
+    Y.AUP.ID = R.ATI.TH.AUP.UP.DATA.NAU<UP.DATA.AUP.ID>
+
+*-Update Status UPLOAD AUP----------------------------------------------------
+    CALL F.READ(FN.ATI.TH.AUP.DATA, Y.AUP.ID, R.ATI.TH.AUP.DATA, F.ATI.TH.AUP.DATA, ERR.ATI.TH.AUP.DATA)
+    Y.STATUS = R.ATI.TH.AUP.DATA<AUP.DATA.STATUS>
+
+    IF Y.STATUS NE "DELETE" THEN
+        R.ATI.TH.AUP.DATA<AUP.DATA.STATUS> = "DELETE"
+        CALL ID.LIVE.WRITE(FN.ATI.TH.AUP.DATA, Y.AUP.ID, R.ATI.TH.AUP.DATA)
+    END
+*-----------------------------------------------------------------------------
+
+    CALL F.WRITE(FN.ATI.TH.AUP.UP.DATA.NAU.DEL, Y.UP.ID, R.ATI.TH.AUP.UP.DATA.NAU)
+    CALL F.DELETE(FN.ATI.TH.AUP.UP.DATA.NAU, Y.UP.ID)
+
+    RETURN
+*-----------------------------------------------------------------------------
+END
+
+
+
+
+

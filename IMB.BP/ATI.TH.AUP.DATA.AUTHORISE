@@ -1,0 +1,323 @@
+*-----------------------------------------------------------------------------
+* <Rating>-125</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ATI.TH.AUP.DATA.AUTHORISE
+*-----------------------------------------------------------------------------
+* Developer Name     : ATI Juan Felix
+* Development Date   : 20170120
+* Description        : Authorise routine for run service
+*-----------------------------------------------------------------------------
+* Modification History:-
+*-----------------------------------------------------------------------------
+* Date            Modified by                Description
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_GTS.COMMON
+    $INSERT I_F.ATI.TH.AUP.DATA
+    $INSERT I_F.ATI.TH.AUP.PARAM
+    $INSERT I_F.TSA.WORKLOAD.PROFILE
+    $INSERT I_F.BATCH
+    $INSERT I_F.TSA.SERVICE
+
+*-----------------------------------------------------------------------------
+MAIN:
+*-----------------------------------------------------------------------------
+    Y.STATUS = R.NEW(AUP.DATA.STATUS)
+
+    GOSUB INIT
+
+    BEGIN CASE
+    CASE Y.STATUS EQ "INPUT"
+        GOSUB PROCESS.INPUT
+
+    CASE Y.STATUS EQ "AUTHORISING"
+        GOSUB PROCESS.AUTHORISING
+
+    CASE Y.STATUS EQ "DELETE"
+        GOSUB PROCESS.DELETE
+    END CASE
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+INIT:
+*-----------------------------------------------------------------------------
+    FN.ATI.TH.AUP.PARAM = "F.ATI.TH.AUP.PARAM"
+    CALL OPF(FN.ATI.TH.AUP.PARAM, F.ATI.TH.AUP.PARAM)
+
+    CALL F.READ(FN.ATI.TH.AUP.PARAM, "SYSTEM", R.ATI.TH.AUP.PARAM, F.ATI.TH.AUP.PARAM, ERR.ATI.TH.AUP.PARAM)
+    Y.FOLDER.NAME = R.ATI.TH.AUP.PARAM<AUP.PARAM.FOLDER.NAME>
+
+    FN.FOLDER = "../bnk.run/" : Y.FOLDER.NAME
+    OPEN FN.FOLDER TO F.FOLDER ELSE
+        DISPLAY "ERR.OPEN.INPUT.FILE = " : FN.FOLDER
+
+        GOTO PROGRAM.ABORT
+    END
+
+    FN.TSA.WORKLOAD.PROFILE = "F.TSA.WORKLOAD.PROFILE"
+    CALL OPF(FN.TSA.WORKLOAD.PROFILE, F.TSA.WORKLOAD.PROFILE)
+
+    FN.BATCH = "F.BATCH"
+    CALL OPF(FN.BATCH, F.BATCH)
+
+    FN.TSA.SERVICE = "F.TSA.SERVICE"
+    CALL OPF(FN.TSA.SERVICE, F.TSA.SERVICE)
+
+    Y.AUP.DATA.ID = ID.NEW
+    Y.FILE.NAME   = R.NEW(AUP.DATA.FILE.NAME)
+
+    RETURN
+
+*=PROCESS AUTHORISE INPUT=========================================================================================================
+*-----------------------------------------------------------------------------
+PROCESS.INPUT:
+*-----------------------------------------------------------------------------
+    CALL F.READ(FN.FOLDER, Y.FILE.NAME, R.FOLDER, F.FOLDER, ERR.FOLDER)
+
+*-Proses Validation Data------------------------------------------------------
+    IF NOT(R.FOLDER) THEN
+        AF    = AUP.DATA.FILE.NAME
+        ETEXT = "Textfile " : Y.FILE.NAME : " tidak ditemukan"
+        CALL STORE.END.ERROR
+    END
+*-Create service for authorise input upload------------------------------------
+    ELSE
+        GOSUB CREATE.SERVICE.INPUT
+    END
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+CREATE.SERVICE.INPUT:
+*-----------------------------------------------------------------------------
+    Y.SERVICE.ID = ID.NEW : "-" : "INPUT"
+
+    CALL F.READ(FN.TSA.SERVICE, Y.SERVICE.ID, R.TSA.SERVICE, F.TSA.SERVICE, ERR.TSA.SERVICE)
+    Y.SERVICE.CONTROL = R.TSA.SERVICE<TS.TSM.SERVICE.CONTROL>
+
+    IF Y.SERVICE.CONTROL EQ "START" THEN
+        AF    = AUP.DATA.FILE.NAME
+        ETEXT = "Proses upload GL belum selesai"
+        CALL STORE.END.ERROR
+    END
+    ELSE
+        GOSUB CREATE.BATCH.INPUT
+        GOSUB CREATE.TSA.WORKLOAD.PROFILE.INPUT
+        GOSUB CREATE.TSA.SERVICE.INPUT
+    END
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+CREATE.BATCH.INPUT:
+*-----------------------------------------------------------------------------
+    R.BATCH = ""
+
+    R.BATCH<BAT.PROCESS.STATUS>    = 0
+    R.BATCH<BAT.BATCH.ENVIRONMENT> = "F"
+
+    R.BATCH<BAT.JOB.NAME, 1>       = "ATI.BM.AUP.UP.CONV.TEXT"
+    R.BATCH<BAT.VERIFICATION, 1>   = ""
+    R.BATCH<BAT.FREQUENCY, 1>      = "D"
+    R.BATCH<BAT.DATA, 1>           = ID.NEW
+    R.BATCH<BAT.JOB.STATUS, 1>     = "0"
+
+    R.BATCH<BAT.JOB.NAME, 2>       = "ATI.BS.AUP.UP.GEN.BATCH"
+    R.BATCH<BAT.VERIFICATION, 2>   = "ATI.BM.AUP.UP.CONV.TEXT"
+    R.BATCH<BAT.FREQUENCY, 2>      = "D"
+    R.BATCH<BAT.DATA, 2>           = ID.NEW
+    R.BATCH<BAT.JOB.STATUS, 2>     = "0"
+
+    R.BATCH<BAT.JOB.NAME, 3>       = "ATI.BS.AUP.UP.INP.POST"
+    R.BATCH<BAT.VERIFICATION, 3>   = "ATI.BS.AUP.UP.GEN.BATCH"
+    R.BATCH<BAT.FREQUENCY, 3>      = "D"
+    R.BATCH<BAT.DATA, 3>           = ID.NEW
+    R.BATCH<BAT.JOB.STATUS, 3>     = "0"
+
+    CALL ID.LIVE.WRITE(FN.BATCH, Y.SERVICE.ID, R.BATCH)
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+CREATE.TSA.WORKLOAD.PROFILE.INPUT:
+*-----------------------------------------------------------------------------
+    R.TSA.WORKLOAD.PROFILE = ""
+
+    IF R.ATI.TH.AUP.PARAM<AUP.PARAM.AGENT.INP> THEN
+        R.TSA.WORKLOAD.PROFILE<TS.WLP.AGENTS.REQUIRED> = R.ATI.TH.AUP.PARAM<AUP.PARAM.AGENT.INP>
+    END
+    ELSE
+        R.TSA.WORKLOAD.PROFILE<TS.WLP.AGENTS.REQUIRED> = 1
+    END
+
+    CALL ID.LIVE.WRITE(FN.TSA.WORKLOAD.PROFILE, Y.SERVICE.ID, R.TSA.WORKLOAD.PROFILE)
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+CREATE.TSA.SERVICE.INPUT:
+*-----------------------------------------------------------------------------
+    R.TSA.SERVICE = ""
+
+    R.TSA.SERVICE<TS.TSM.DESCRIPTION>     = "Upload GL " : ID.NEW
+    R.TSA.SERVICE<TS.TSM.WORK.PROFILE>    = Y.SERVICE.ID
+    R.TSA.SERVICE<TS.TSM.USER>            = OPERATOR
+    R.TSA.SERVICE<TS.TSM.SERVICE.CONTROL> = "START"
+
+    CALL ID.LIVE.WRITE(FN.TSA.SERVICE, Y.SERVICE.ID, R.TSA.SERVICE)
+
+    RETURN
+
+*=PROCESS AUTHORISE DELETE========================================================================================================
+*-----------------------------------------------------------------------------
+PROCESS.DELETE:
+*-----------------------------------------------------------------------------
+    Y.SERVICE.DEL.ID = ID.NEW : "-" : "DELETE"
+    Y.SERVICE.INP.ID = ID.NEW : "-" : "INPUT"
+
+    CALL F.READ(FN.TSA.SERVICE, Y.SERVICE.INP.ID, R.TSA.SERVICE.INP, F.TSA.SERVICE, ERR.TSA.SERVICE.INP)
+    Y.SERVICE.CONTROL.INP = R.TSA.SERVICE.INP<TS.TSM.SERVICE.CONTROL>
+
+    IF Y.SERVICE.CONTROL.INP EQ "START" THEN
+        AF    = AUP.DATA.FILE.NAME
+        ETEXT = "Proses upload GL belum selesai"
+        CALL STORE.END.ERROR
+    END
+    ELSE
+        GOSUB CREATE.BATCH.DELETE
+        GOSUB CREATE.TSA.WORKLOAD.PROFILE.DELETE
+        GOSUB CREATE.TSA.SERVICE.DELETE
+    END
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+CREATE.BATCH.DELETE:
+*-----------------------------------------------------------------------------
+    R.BATCH = ""
+
+    R.BATCH<BAT.PROCESS.STATUS>    = 0
+    R.BATCH<BAT.BATCH.ENVIRONMENT> = "F"
+
+    R.BATCH<BAT.JOB.NAME, 1>       = "ATI.BM.AUP.UP.DEL.PROCESS"
+    R.BATCH<BAT.VERIFICATION, 1>   = ""
+    R.BATCH<BAT.FREQUENCY, 1>      = "D"
+    R.BATCH<BAT.DATA, 1>           = ID.NEW
+    R.BATCH<BAT.JOB.STATUS, 1>     = "0"
+
+    CALL ID.LIVE.WRITE(FN.BATCH, Y.SERVICE.DEL.ID, R.BATCH)
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+CREATE.TSA.WORKLOAD.PROFILE.DELETE:
+*-----------------------------------------------------------------------------
+    R.TSA.WORKLOAD.PROFILE = ""
+
+    IF R.ATI.TH.AUP.PARAM<AUP.PARAM.AGENT.AUT> THEN
+        R.TSA.WORKLOAD.PROFILE<TS.WLP.AGENTS.REQUIRED> = R.ATI.TH.AUP.PARAM<AUP.PARAM.AGENT.AUT>
+    END
+    ELSE
+        R.TSA.WORKLOAD.PROFILE<TS.WLP.AGENTS.REQUIRED> = 1
+    END
+
+    CALL ID.LIVE.WRITE(FN.TSA.WORKLOAD.PROFILE, Y.SERVICE.DEL.ID, R.TSA.WORKLOAD.PROFILE)
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+CREATE.TSA.SERVICE.DELETE:
+*-----------------------------------------------------------------------------
+    R.TSA.SERVICE = ""
+
+    R.TSA.SERVICE<TS.TSM.DESCRIPTION>     = "Hapus upload GL " : ID.NEW
+    R.TSA.SERVICE<TS.TSM.WORK.PROFILE>    = Y.SERVICE.DEL.ID
+    R.TSA.SERVICE<TS.TSM.USER>            = OPERATOR
+    R.TSA.SERVICE<TS.TSM.SERVICE.CONTROL> = "START"
+
+    CALL ID.LIVE.WRITE(FN.TSA.SERVICE, Y.SERVICE.DEL.ID, R.TSA.SERVICE)
+
+    RETURN
+
+*=PROCESS AUTHORISE AUTHORISE===================================================================================================
+*-----------------------------------------------------------------------------
+PROCESS.AUTHORISING:
+*-----------------------------------------------------------------------------
+    Y.SERVICE.AUTH.ID = ID.NEW : "-" : "AUTH"
+    Y.SERVICE.INP.ID  = ID.NEW : "-" : "INPUT"
+
+    CALL F.READ(FN.TSA.SERVICE, Y.SERVICE.INP.ID, R.TSA.SERVICE.INP, F.TSA.SERVICE, ERR.TSA.SERVICE.INP)
+    Y.SERVICE.CONTROL.INP = R.TSA.SERVICE.INP<TS.TSM.SERVICE.CONTROL>
+
+    IF Y.SERVICE.CONTROL.INP EQ "START" THEN
+        AF    = AUP.DATA.FILE.NAME
+        ETEXT = "Proses upload GL belum selesai"
+        CALL STORE.END.ERROR
+    END
+    ELSE
+        GOSUB CREATE.BATCH.AUTHORISE
+        GOSUB CREATE.TSA.WORKLOAD.PROFILE.AUTHORISE
+        GOSUB CREATE.TSA.SERVICE.AUTHORISE
+    END
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+CREATE.BATCH.AUTHORISE:
+*-----------------------------------------------------------------------------
+    R.BATCH = ""
+
+    R.BATCH<BAT.PROCESS.STATUS>    = 0
+    R.BATCH<BAT.BATCH.ENVIRONMENT> = "F"
+
+    R.BATCH<BAT.JOB.NAME, 1>       = "ATI.BM.AUP.UP.AUT.PROCESS"
+    R.BATCH<BAT.VERIFICATION, 1>   = ""
+    R.BATCH<BAT.FREQUENCY, 1>      = "D"
+    R.BATCH<BAT.DATA, 1>           = ID.NEW
+    R.BATCH<BAT.JOB.STATUS, 1>     = "0"
+
+    CALL ID.LIVE.WRITE(FN.BATCH, Y.SERVICE.AUTH.ID, R.BATCH)
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+CREATE.TSA.WORKLOAD.PROFILE.AUTHORISE:
+*-----------------------------------------------------------------------------
+    R.TSA.WORKLOAD.PROFILE = ""
+
+    IF R.ATI.TH.AUP.PARAM<AUP.PARAM.AGENT.AUT> THEN
+        R.TSA.WORKLOAD.PROFILE<TS.WLP.AGENTS.REQUIRED> = R.ATI.TH.AUP.PARAM<AUP.PARAM.AGENT.AUT>
+    END
+    ELSE
+        R.TSA.WORKLOAD.PROFILE<TS.WLP.AGENTS.REQUIRED> = 1
+    END
+
+    CALL ID.LIVE.WRITE(FN.TSA.WORKLOAD.PROFILE, Y.SERVICE.AUTH.ID, R.TSA.WORKLOAD.PROFILE)
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+CREATE.TSA.SERVICE.AUTHORISE:
+*-----------------------------------------------------------------------------
+    R.TSA.SERVICE = ""
+
+    R.TSA.SERVICE<TS.TSM.DESCRIPTION>     = "Otorisasi upload GL " : ID.NEW
+    R.TSA.SERVICE<TS.TSM.WORK.PROFILE>    = Y.SERVICE.AUTH.ID
+    R.TSA.SERVICE<TS.TSM.USER>            = OPERATOR
+    R.TSA.SERVICE<TS.TSM.SERVICE.CONTROL> = "START"
+
+    CALL ID.LIVE.WRITE(FN.TSA.SERVICE, Y.SERVICE.AUTH.ID, R.TSA.SERVICE)
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+PROGRAM.ABORT:
+*-----------------------------------------------------------------------------
+    RETURN TO PROGRAM.ABORT
+*-----------------------------------------------------------------------------
+END
+
+
+

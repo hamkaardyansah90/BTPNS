@@ -1,0 +1,80 @@
+*-----------------------------------------------------------------------------
+* <Rating>-30</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ATI.EB.MM.JOIN(ENQ.DATA)
+*-----------------------------------------------------------------------------
+* Developer Name     : Dwi K
+* Development Date   : 20160906
+* Description        : Routine for add selection table ATI.TT.MM.JOINT.HOLDER
+*-----------------------------------------------------------------------------
+* Modification History:-
+*-----------------------------------------------------------------------------
+* Date               :
+* Modified by        :
+* Description        :
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+
+*-----------------------------------------------------------------------------
+MAIN:
+*-----------------------------------------------------------------------------
+    GOSUB INIT
+    GOSUB PROCESS
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+INIT:
+*-----------------------------------------------------------------------------
+    FN.MM.MONEY.MARKET = 'F.MM.MONEY.MARKET'
+    F.MM.MONEY.MARKET  = ''
+    CALL OPF(FN.MM.MONEY.MARKET, F.MM.MONEY.MARKET)
+
+    FN.ATI.TT.MM.JOINT.HOLDER = 'F.ATI.TT.MM.JOINT.HOLDER'
+    F.ATI.TT.MM.JOINT.HOLDER  = ''
+    CALL OPF(FN.ATI.TT.MM.JOINT.HOLDER, F.ATI.TT.MM.JOINT.HOLDER)
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+PROCESS:
+*-----------------------------------------------------------------------------
+    Y.FIELD = ENQ.DATA<2,0>
+    FIND 'CUSTOMER.ID' IN Y.FIELD SETTING AP, VP THEN
+        Y.FIELD      = ENQ.DATA<2,VP>
+        Y.ID         = ENQ.DATA<4,VP>
+        Y.OPERAND    = ENQ.DATA<3,VP>
+
+        SEL.CMD = 'SELECT ':FN.MM.MONEY.MARKET:' WITH CUSTOMER.ID EQ ':Y.ID
+        SEL.LIST = ''
+        CALL EB.READLIST(SEL.CMD,SEL.LIST,'',NO.REC, ERR)
+
+        CALL F.READ(FN.ATI.TT.MM.JOINT.HOLDER, Y.ID, R.ATI.TT.MM.JOINT.HOLDER, F.ATI.TT.MM.JOINT.HOLDER, JOIN.ERR)
+
+        CONVERT FM TO " " IN SEL.LIST
+        CONVERT FM TO " " IN R.ATI.TT.MM.JOINT.HOLDER
+
+        IF SEL.LIST THEN
+            Y.MM.ID = SEL.LIST: " " : R.ATI.TT.MM.JOINT.HOLDER
+        END ELSE
+            Y.MM.ID = R.ATI.TT.MM.JOINT.HOLDER
+        END
+
+        ENQ.DATA<2,VP> = "@ID"
+        ENQ.DATA<3,VP> = "EQ"
+        ENQ.DATA<4,VP> = Y.MM.ID
+
+    END
+
+    RETURN
+*-----------------------------------------------------------------------------
+END
+
+
+
+
+
+
+

@@ -1,0 +1,136 @@
+*-----------------------------------------------------------------------------
+* <Rating>-77</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ATI.BM.AUP.UP.CONV.TEXT.SELECT
+*-----------------------------------------------------------------------------
+* Developer Name     : ATI Juan Felix
+* Development Date   : 20170124
+* Description        : Batch Routine Upload GL convert textfile to table ATI.TH.AUP.UP.DATA
+*-----------------------------------------------------------------------------
+* Modification History:-
+*-----------------------------------------------------------------------------
+* Date            Modified by                Description
+* 20170522        ATI Yudistia Adnan         Change F.WRITE to WRITE when write to tabel ATI.TT.AUP.UP.AO.CONCAT
+*-----------------------------------------------------------------------------
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_TSA.COMMON
+    $INSERT I_BATCH.FILES
+    $INSERT I_F.USER
+    $INSERT I_F.ACCOUNT
+    $INSERT I_F.ATI.TH.AUP.DATA
+    $INSERT I_F.ATI.TH.AUP.PARAM
+    $INSERT I_F.ATI.TH.AUP.UP.DATA
+    $INSERT I_F.ATI.TT.AUP.UP.AO.CONCAT
+    $INSERT I_ATI.BM.AUP.UP.CONV.TEXT.COMMON
+
+*-----------------------------------------------------------------------------
+MAIN:
+*-----------------------------------------------------------------------------
+    GOSUB INIT
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+INIT:
+*-----------------------------------------------------------------------------
+    Y.AUP.ID = BATCH.DETAILS<3,1>
+
+    Y.DATA.LIST     = ""
+    PROCESS.GOAHEAD = ""
+    SEL.CMD         = ""
+
+    IF CONTROL.LIST EQ "" THEN
+        CONTROL.LIST = "INITIAL.UPDATE":FM:"FINAL.UPDATE"
+    END
+
+    Y.CONTROL.LIST.FUNCTION = CONTROL.LIST<1,1>
+
+    BEGIN CASE
+    CASE Y.CONTROL.LIST.FUNCTION EQ "INITIAL.UPDATE"
+        GOSUB PROCESS
+
+    CASE Y.CONTROL.LIST.FUNCTION EQ "FINAL.UPDATE"
+        GOSUB FINAL.UPDATE
+    END CASE
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+PROCESS:
+*-----------------------------------------------------------------------------
+*-Delete Data AO Concat-------------------------------------------------------
+    SEL.CMD = "SELECT " : FN.ATI.TT.AUP.UP.AO.CONCAT : " WITH @ID EQ '" : Y.AUP.ID : "...'"
+    CALL EB.READLIST(SEL.CMD, SEL.LIST, "", SEL.CNT, SEL.ERR)
+
+    FOR I = 1 TO SEL.CNT
+        DELETE F.ATI.TT.AUP.UP.AO.CONCAT, SEL.LIST<I>
+    NEXT I
+
+*-Get Record Texfile----------------------------------------------------------
+    CALL F.READ(FN.ATI.TH.AUP.DATA, Y.AUP.ID, R.ATI.TH.AUP.DATA, F.ATI.TH.AUP.DATA, ERR.ATI.TH.AUP.DATA)
+    Y.FILE.NAME = R.ATI.TH.AUP.DATA<AUP.DATA.FILE.NAME>
+
+    CALL F.READ(FN.FILE.DATA, Y.FILE.NAME, R.FILE.DATA, F.FILE.DATA, ERR.FILE.DATA)
+
+*-Add Sequence Record---------------------------------------------------------
+    Y.R.FILE.DATA.CNT = DCOUNT(R.FILE.DATA, FM)
+
+    FOR I = 1 TO Y.R.FILE.DATA.CNT
+        Y.DATA.LIST<-1> = R.FILE.DATA<I> : "|" : I
+    NEXT I
+
+*-Create Build List Record----------------------------------------------------
+    CALL BATCH.BUILD.LIST("", Y.DATA.LIST)
+
+    RETURN
+
+*-----------------------------------------------------------------------------
+FINAL.UPDATE:
+*-----------------------------------------------------------------------------
+*-Convert AO Concat AGENT to AO Concat Per Batch------------------------------
+    SEL.CMD  = "SELECT " : FN.ATI.TT.AUP.UP.AO.CONCAT : " WITH @ID EQ '" : Y.AUP.ID : "*AGENT*...'"
+    SEL.LIST = ""
+    CALL EB.READLIST(SEL.CMD, SEL.LIST, "", SEL.CNT, SEL.ERR)
+
+    FOR I = 1 TO SEL.CNT
+        Y.AO.CONCAT.AGENT.ID = SEL.LIST<I>
+*       Y.AO.CONCAT.BATCH.ID = Y.AUP.ID : "*" : FIELD(Y.AO.CONCAT.AGENT.ID, "*", 3)
+        Y.AO.CONCAT.BATCH.ID = Y.AUP.ID : "*" : FIELD(Y.AO.CONCAT.AGENT.ID, "*", 3, 2)
+
+        CALL F.READ(FN.ATI.TT.AUP.UP.AO.CONCAT, Y.AO.CONCAT.AGENT.ID, R.ATI.TT.AUP.UP.AO.AGENT.CONCAT, F.ATI.TT.AUP.UP.AO.CONCAT, ERR.ATI.TT.AUP.UP.AO.AGENT.CONCAT)
+
+        IF R.ATI.TT.AUP.UP.AO.AGENT.CONCAT THEN
+            CALL F.READ(FN.ATI.TT.AUP.UP.AO.CONCAT, Y.AO.CONCAT.BATCH.ID, R.ATI.TT.AUP.UP.AO.BATCH.CONCAT, F.ATI.TT.AUP.UP.AO.CONCAT, ERR.ATI.TT.AUP.UP.AO.BATCH.CONCAT)
+
+            IF R.ATI.TT.AUP.UP.AO.BATCH.CONCAT THEN
+                R.ATI.TT.AUP.UP.AO.BATCH.CONCAT<-1> = R.ATI.TT.AUP.UP.AO.AGENT.CONCAT
+            END
+            ELSE
+                R.ATI.TT.AUP.UP.AO.BATCH.CONCAT = R.ATI.TT.AUP.UP.AO.AGENT.CONCAT
+            END
+
+*<20170522_Yudistia Adnan
+*           CALL F.WRITE(FN.ATI.TT.AUP.UP.AO.CONCAT, Y.AO.CONCAT.BATCH.ID, R.ATI.TT.AUP.UP.AO.BATCH.CONCAT)
+            WRITE R.ATI.TT.AUP.UP.AO.BATCH.CONCAT TO F.ATI.TT.AUP.UP.AO.CONCAT, Y.AO.CONCAT.BATCH.ID
+*>20170522_Yudistia Adnan
+
+            DELETE F.ATI.TT.AUP.UP.AO.CONCAT, Y.AO.CONCAT.AGENT.ID
+        END
+    NEXT I
+
+    RETURN
+*-----------------------------------------------------------------------------
+END
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,175 @@
+*-----------------------------------------------------------------------------
+* <Rating>-100</Rating>
+*-----------------------------------------------------------------------------
+    SUBROUTINE ATI.NOFILE.AUP.DATA(Y.OUTPUT)
+*-----------------------------------------------------------------------------
+* Developer Name     : 20170719
+* Development Date   : Yudistia Adnan Putri
+* Description        : Routine nofile to list GL UP Hari ini
+*-----------------------------------------------------------------------------
+* Modification History:-
+*-----------------------------------------------------------------------------
+* Date               :
+* Modified by        :
+* Description        :
+*-----------------------------------------------------------------------------
+
+    $INSERT I_COMMON
+    $INSERT I_EQUATE
+    $INSERT I_ENQUIRY.COMMON
+    $INSERT I_F.ATI.TH.AUP.DATA
+    $INSERT I_F.COMPANY
+
+*-----------------------------------------------------------------------------
+MAIN:
+*-----------------------------------------------------------------------------
+    GOSUB INIT
+    GOSUB PROC.SELECTION
+    GOSUB PROCESS
+
+    RETURN
+*-----------------------------------------------------------------------------
+INIT:
+*-----------------------------------------------------------------------------
+
+    FN.ATI.TH.AUP.DATA = "F.ATI.TH.AUP.DATA"
+    F.ATI.TH.AUP.DATA  = ""
+    CALL OPF(FN.ATI.TH.AUP.DATA, F.ATI.TH.AUP.DATA)
+
+    FN.COMPANY = "F.COMPANY"
+    F.COMPANY  = ""
+    CALL OPF(FN.COMPANY, F.COMPANY)
+
+    FIND "ID.AUP" IN ENQ.SELECTION<2> SETTING Y.POSF, Y.POSV THEN
+        Y.ID.OP  = ENQ.SELECTION<3,Y.POSV>
+        Y.ID.AUP = ENQ.SELECTION<4,Y.POSV>
+    END
+
+    FIND "FILE.NAME" IN ENQ.SELECTION<2> SETTING POSF, POSV THEN
+        Y.FILE.NAME.OP    = ENQ.SELECTION<3,POSV>
+        Y.FILE.NAME.VALUE = ENQ.SELECTION<4,POSV>
+    END
+
+    FIND "DATE.TIME" IN ENQ.SELECTION<2> SETTING POSFM, POSVM THEN
+        Y.DT.OP = ENQ.SELECTION<3,POSVM>
+        Y.DATE  = ENQ.SELECTION<4,POSVM>
+    END
+
+    Y.OUT    = ""
+    Y.OUTPUT = ""
+    SEL.LIST = ""
+    SEL.NO   = ""
+
+    RETURN
+*-----------------------------------------------------------------------------
+PROC.SELECTION:
+*-----------------------------------------------------------------------------
+
+    SEL.CMD = "SELECT ":FN.ATI.TH.AUP.DATA
+
+    IF Y.ID.AUP THEN
+        IF Y.ID.OP EQ "EQ" THEN
+            SEL.CMD := " WITH @ID EQ ":Y.ID.AUP
+        END ELSE
+            SEL.CMD := " WITH @ID LIKE ...":Y.ID.AUP:"..."
+        END
+    END
+
+    IF Y.FILE.NAME.VALUE THEN
+        IF Y.FILE.NAME.OP EQ "EQ" THEN
+            SEL.CMD := " WITH FILE.NAME EQ ":Y.FILE.NAME.VALUE
+        END ELSE
+            SEL.CMD := " WITH FILE.NAME LIKE ...":Y.FILE.NAME.VALUE:"..."
+        END
+    END
+
+    IF Y.DATE THEN
+        IF Y.DT.OP EQ "EQ" THEN
+            Y.DATE = Y.DATE[3,6]
+            IF Y.DATE EQ "TODAY" OR Y.DATE EQ "!TODAY" THEN
+                Y.DATE = TODAY[3,6]
+            END
+            SEL.CMD := " WITH DATE.TIME LIKE ":Y.DATE:"..."
+        END ELSE
+            IF FIELD(Y.DATE, SM, 1) EQ "TODAY" OR FIELD(Y.DATE, SM, 1) EQ "!TODAY" THEN
+                Y.DATE.1 = TODAY[3,6]
+            END ELSE
+                Y.DATE.1 = FIELD(Y.DATE, SM,1)
+                Y.DATE.1 = Y.DATE.1[3,6]
+            END
+
+            IF FIELD(Y.DATE, SM, 2) EQ "TODAY" OR FIELD(Y.DATE, SM, 2) EQ "!TODAY" THEN
+                Y.DATE.2 = TODAY[3,6]
+            END ELSE
+                Y.DATE.2 = FIELD(Y.DATE, SM,2)
+                Y.DATE.2 = Y.DATE.2[3,6]
+            END
+
+            SEL.CMD := " WITH DATE.TIME GE '":Y.DATE.1:"0000' AND DATE.TIME LE '":Y.DATE.2:"5959'"
+        END
+    END
+
+    SEL.CMD := " BY-DSND DATE.TIME"
+
+    CALL EB.READLIST(SEL.CMD,SEL.LIST,"",SEL.NO,SEL.ERR)
+
+    RETURN
+*-----------------------------------------------------------------------------
+PROCESS:
+*-----------------------------------------------------------------------------
+    IF SEL.LIST THEN
+        FOR Y.LOOP = 1 TO SEL.NO
+            Y.ID = SEL.LIST<Y.LOOP>
+            CALL F.READ(FN.ATI.TH.AUP.DATA,Y.ID, R.ATI.TH.AUP.DATA, F.ATI.TH.AUP.DATA, ATI.TH.AUP.DATA.ERR)
+
+            Y.FILE.NAME    = R.ATI.TH.AUP.DATA<AUP.DATA.FILE.NAME>
+            Y.STATUS       = R.ATI.TH.AUP.DATA<AUP.DATA.STATUS>
+            Y.TOT.RECORD   = R.ATI.TH.AUP.DATA<AUP.DATA.TOT.RECORD>
+            Y.TOT.AMOUNT   = R.ATI.TH.AUP.DATA<AUP.DATA.TOT.AMOUNT>
+            Y.TOT.BRANCH   = R.ATI.TH.AUP.DATA<AUP.DATA.TOT.BRANCH>
+            Y.REC.DB       = R.ATI.TH.AUP.DATA<AUP.DATA.TOT.REC.DB>
+            Y.TOT.DB.TRANS = R.ATI.TH.AUP.DATA<AUP.DATA.TOT.DB.TRANS>
+            Y.REC.CR       = R.ATI.TH.AUP.DATA<AUP.DATA.TOT.REC.CR>
+            Y.TOT.CR.TRANS = R.ATI.TH.AUP.DATA<AUP.DATA.TOT.CR.TRANS>
+            Y.DATE.TIME    = R.ATI.TH.AUP.DATA<AUP.DATA.DATE.TIME>
+            Y.USER.INPUT   = R.ATI.TH.AUP.DATA<AUP.DATA.USER.INPUT>
+
+            GOSUB BUILD.ARRAY
+        NEXT Y.LOOP
+
+        GOSUB BUILD.FINAL
+    END
+    RETURN
+*-----------------------------------------------------------------------------
+BUILD.ARRAY:
+*-----------------------------------------------------------------------------
+
+    Y.OUT.TEMP  = Y.ID
+    Y.OUT.TEMP := "*": Y.FILE.NAME
+    Y.OUT.TEMP := "*": Y.STATUS
+    Y.OUT.TEMP := "*": Y.TOT.RECORD
+    Y.OUT.TEMP := "*": Y.TOT.AMOUNT
+    Y.OUT.TEMP := "*": Y.TOT.BRANCH
+    Y.OUT.TEMP := "*": Y.REC.DB
+    Y.OUT.TEMP := "*": Y.TOT.DB.TRANS
+    Y.OUT.TEMP := "*": Y.REC.CR
+    Y.OUT.TEMP := "*": Y.TOT.CR.TRANS
+    Y.OUT.TEMP := "*": Y.DATE.TIME
+    Y.OUT.TEMP := "*": Y.USER.INPUT
+
+    Y.OUT<-1> = Y.OUT.TEMP
+
+    RETURN
+*-----------------------------------------------------------------------------
+BUILD.FINAL:
+*-----------------------------------------------------------------------------
+
+    Y.OUTPUT = Y.OUT
+
+    RETURN
+*-----------------------------------------------------------------------------
+END
+
+
+
+
